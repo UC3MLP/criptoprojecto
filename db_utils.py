@@ -8,9 +8,12 @@ def db_init():
     cur.execute("CREATE TABLE IF NOT EXISTS users(email TEXT UNIQUE, "
                 "dni TEXT UNIQUE, salt BLOB, pwd_hash BLOB, iterations "
                 "INTEGER)")
+    # for saving users
     cur.execute("CREATE TABLE IF NOT EXISTS tokens(token_hash TEXT PRIMARY "
                 "KEY, election_id TEXT, used INTEGER)")
+    # for saving tokens from auth server
     cur.execute("CREATE TABLE IF NOT EXISTS tallies(election_id TEXT, "
                 "choice_id TEXT)")
+    # for saving anonymous votes
     con.commit()
     con.close()
