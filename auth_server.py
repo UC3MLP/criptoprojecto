@@ -48,22 +48,25 @@ def register_user(email, dni, password):
     con.close()
 
 
-def login_user(email, dni, password):
+def login_user(email,password):
     """comprobar que tienen la misma contraseña"""
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
     row = cur.execute("""
-        SELECT salt, pwd_hash, iterations FROM users WHERE email=? AND 
-        dni=?""", (email, dni)).fetchone()
+        SELECT salt, pwd_hash, iterations , dni FROM users WHERE email=?
+        """, (email,)).fetchone()
     con.close()
     # fetch la salt, pwd_hash y iterations
     if not row:
         # si no existe, nada
-        return False
-    salt, stored_hash, iterations = row  # la guardo
+        return False,  None
+    salt, stored_hash, iterations,dni = row  # la guardo
     test = derive_pwd_hash(password, salt, iterations)
-    return hmac.compare_digest(test, stored_hash)
-    # si coinciden ? contraseña correcta
+    if hmac.compare_digest(test, stored_hash):
+        return True,dni #Éxito, devolvemos true y dni
+    else: 
+        return False, None # Error, devolvemos nada y false
+    # si coinciden ? contraseña correcta y devuelve el dni asociado al correo 
 
 
 # tokens de elegibilidad

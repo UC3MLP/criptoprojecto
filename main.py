@@ -29,11 +29,17 @@ class App(tk.Tk):
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(pady=10, padx=10, expand=True, fill ="both")
 
-        #Frames para pestañas
+        #Frames para pestañas 
         self.login_frame = ttk.Frame(self.notebook,padding ="10 10 10 10 ")
         self.register_frame = ttk.Frame(self.notebook,padding = "10 10 10 10 ")
         self.notebook.add(self.login_frame,text= "Iniciar Sesión")
         self.notebook.add(self.register_frame,text= "Registrarse")
+        
+        #etiqueta de estado para mensajes del sistema
+        self.status_label =ttk.Label(self,text="", font=('Arial',10,'bold'))
+        self.status_label.pack(pady= 5)
+
+        #Creando las interfaces
         self.create_login_widgets()
         self.create_register_widgets()
 
@@ -79,9 +85,12 @@ class App(tk.Tk):
         email =self.reg_email_entry.get()
         password = self.reg_pwd_entry.get()
 
+        #Limpiar el mensaje anterior si existe
+        self.status_label.config(text="")
+
         try:
             register_user(email,dni,password)
-            messagebox.showinfo("Registro completado, Inicia sesión")
+            self.status_label.config(text="Registro completado, debes iniciar sesión",foreground="blue")
             # Limpiar campos despues del registro
             self.reg_dni_entry.delete(0,tk.END)
             self.reg_email_entry.delete(0,tk.END)
@@ -90,13 +99,13 @@ class App(tk.Tk):
             self.notebook.select(self.login_frame)
 
         except ValueError as e:
-            messagebox.showerror("Error de Validación",str(e))
+            self.status_label.config(text=f"Error de validadción:{e}", foreground="red")
         except Exception as e:
             # Error de base de datos en caso de que existan por ejemplo ya el dni o el email
             if "UNIQUE constrait failed" in str(e):
-                messagebox.showerror("Ya hay un email o DNI registrado")
+                self.status_label.config(text="Error Registro DNI o Email ya está registrado", foreground="red")
             else:
-                messagebox.showerror("Error desconocido")
+                self.status_label.config(text=f"Error :{e}", foreground="red")
 
     
     #Lógica para el login
@@ -104,20 +113,23 @@ class App(tk.Tk):
         email = self.login_email_entry.get()
         password = self.login_pwd_entry.get()
 
-        #la función login _user de auth_server nos devuelve true o false
+        #la función login _user de auth_server nos devuelve true o false y el DNI asociado
+        # ya que es importante para despues y para el database
+        succes, dni_user=login_user(email,password)
 
-        if login_user(email,password):
-            messagebox.showinfo("Sesión iniciada",)
+        if succes:
+            self.status_label.config(text="Sesión iniciada, dni: {dni_user}",foreground="blue")
             #tras esto se llama a la siguiente ventana donde se realiza la votación
-            self.show_voting_interface()
+            self.show_voting_interface(dni_user)
         else:
-            messagebox.showerror("Error,Dni,Email o contraseña incorrectos")
+            self.status_label.config(text="Error de inicio de sesión, email ya está registrado o es incorrecto:", foreground="red")
+
 
 
     
     #  Interfaz de votación
 
-    def show_voting_interface(self):
+    def show_voting_interface(self,dni):
         #plataforma de votacion
         #por ahora cerrada falta por hacer!!!!!
         self.destroy()
