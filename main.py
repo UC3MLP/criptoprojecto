@@ -5,7 +5,7 @@ from tkinter import messagebox
 from db_utils import db_init
 from auth_server import AuthServer, register_user, login_user
 from votar_box import BallotBox
-"from crypto_client import ClientCrypto"
+from crypto_client import ClientCrypto
 
 # Inicializacion de tkinter
 
@@ -110,38 +110,109 @@ class App(tk.Tk):
     
     #Lógica para el login
     def handle_login(self):
-        email = self.login_email_entry.get()
-        password = self.login_pwd_entry.get()
+            email = self.login_email_entry.get()
+            password = self.login_pwd_entry.get()
 
-        #la función login _user de auth_server nos devuelve true o false y el DNI asociado
-        # ya que es importante para despues y para el database
-        succes, dni_user=login_user(email,password)
+            #la función login _user de auth_server nos devuelve true o false y el DNI asociado
+            # ya que es importante para despues y para el database
+            succes, dni_user=login_user(email,password)
 
-        if succes:
-            self.status_label.config(text="Sesión iniciada, dni: {dni_user}",foreground="blue")
-            #tras esto se llama a la siguiente ventana donde se realiza la votación
-            self.show_voting_interface(dni_user)
-        else:
-            self.status_label.config(text="Error de inicio de sesión, email ya está registrado o es incorrecto:", foreground="red")
+            if succes:
+                self.status_label.config(text=f"Sesión iniciada, dni: {dni_user}",foreground="blue")
+                #tras esto se llama a la siguiente ventana donde se realiza la votación
+                self.show_voting_interface(dni_user)
+            else:
+                self.status_label.config(text="Error de inicio de sesión, email ya está registrado o es incorrecto:", foreground="red")
 
 
 
-    
-    #  Interfaz de votación
+
+
+
+  #  Interfaz de votación
 
     def show_voting_interface(self,dni):
         #plataforma de votacion
-        #por ahora cerrada falta por hacer!!!!!
-        self.destroy()
+        self.withdraw() #ocultamos la ventana principal
+        try:
+                
+            #Abre la nueva ventana 
+            Voting_window = VotingInterface(self,dni,self.auth_server)
 
-        #se necesita abrir la ventana principal para dejar al usuario
-        # las opciones
-        print(f"Usuario ha iniciado sesión")
+            self.wait_window(Voting_window) #Bloquea la ventana hasta que termine el voto
+        except Exception as e:
+            print(f"Error en ventana de votación {e}")
+            messagebox.showerror("Error", f"Error al abrir ventana de votación {e}")
+        finally:
 
+            #despues de votar te lleva a login de nuevo
+            self.deiconify()
 
+# Interfaz para la votación
+class VotingInterface(tk.Toplevel):
+    def __init__(self, master,dni,auth_server):
+        #tk.Toplevel crea una ventana secundaria
+        super().__init__(master)
+        self.title("Plataforma de votación")
+        self.geometry("400x300")
+        self.configure(background="#f0f0f0")
 
+        #Datos y módulos clave
+        self.dni = dni
+        self.auth_server = auth_server
+        self.election_id = "Votación"
+        self.crypto_client=ClientCrypto()#genera el par de claves del usuario
+        
+        #Token de elegibilidad
+        self.eligibility_token = None
+
+        #título de la ley(SIMULACION CAMBIAR)----
+        ttk.Label(self,text ="Propuesta de Ley: legalizar a los gatitos presidentes",
+                  font=('Arial',12,'bold')).pack(pady=10)
         
 
+        #Etiqueta de estado
+        self.status_label = ttk.Label(self,text="obteniendo token",foreground="blue")
+        self.status_label.pack(pady=5)
+
+        #Frame para los botones de votación
+        button_frame = ttk.Frame(self)
+        button_frame.pack(pady=20)
+
+        #Botones de vot
+        ttk.Button(button_frame, text='✅ Voto a favor', command= lambda: self.handle_vote("SI")).pack(side=tk.LEFT, padx= 15)
+        ttk.Button(button_frame, text='❌ Voto en contra', command= lambda: self.handle_vote("NO")).pack(side=tk.LEFT, padx= 15)
+        ttk.Button(button_frame, text='⚪️ Abstención', command= lambda: self.handle_vote("ABSTENCIÓN")).pack(side=tk.LEFT, padx= 15)
+
+        #iniciar el proceso de obtener el token
+        self.get_eligibility_token()
+
+    
+    def get_eligibility_token(self):
+        """ Llamada AuthServer para obtener el token """
+
+        #Falta por hacer
+        
+    
+    def handle_vote(self, vote_choice:str):
+        """ Cifra firma y prepara el voto para llevarlo a la urna """
+       
+        
+        #Generar la clave AES
+        aes_key = self.crypto_client.generate_aes_key() #No se si esta del todo bien generada !!!!!!!
+        
+        #cifrar la eleccion del voto
+        iv, encrypted_vote = self.crypto_client.encrypt_vote_aes(vote_choice, aes_key)
+
+        # preparar el mensaje para firmar
+
+        #Firmar
+        
+
+        #Obtener la clave pública(para que la urna verifique la firma)
+        
+        #Falta por hacer
+        #Envío a la urna electrónica
 
 
 
