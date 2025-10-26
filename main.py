@@ -10,11 +10,13 @@ from crypto_client import ClientCrypto
 # Inicializacion de tkinter
 
 class App(tk.Tk):
-    def __init__(self,AuthServer):
+    def __init__(self,AuthServer,BallotBox,bb_pub_pem):
         super().__init__()
         self.auth_server = AuthServer # Guardamos la instancia del servidor de auteticación
         self.title("sistema de votación-Acceso")
         self.geometry("400x350")
+        self.ballot_box = BallotBox
+        self.bb_pub_pem = bb_pub_pem
         self.configure(background="#f0f0f0")
 
     
@@ -118,15 +120,10 @@ class App(tk.Tk):
             succes, dni_user=login_user(email,password)
 
             if succes:
-                self.status_label.config(text=f"Sesión iniciada, dni: {dni_user}",foreground="blue")
                 #tras esto se llama a la siguiente ventana donde se realiza la votación
                 self.show_voting_interface(dni_user)
             else:
                 self.status_label.config(text="Error de inicio de sesión, email ya está registrado o es incorrecto:", foreground="red")
-
-
-
-
 
 
   #  Interfaz de votación
@@ -137,7 +134,7 @@ class App(tk.Tk):
         try:
                 
             #Abre la nueva ventana 
-            Voting_window = VotingInterface(self,dni,self.auth_server)
+            Voting_window = VotingInterface(self,dni,self.auth_server,self.ballot_box, self.bb_pub_pem)
 
             self.wait_window(Voting_window) #Bloquea la ventana hasta que termine el voto
         except Exception as e:
@@ -150,7 +147,7 @@ class App(tk.Tk):
 
 # Interfaz para la votación
 class VotingInterface(tk.Toplevel):
-    def __init__(self, master,dni,auth_server):
+    def __init__(self, master,dni,auth_server, ballot_box, bb_pub_pem):
         #tk.Toplevel crea una ventana secundaria
         super().__init__(master)
         self.title("Plataforma de votación")
@@ -161,19 +158,23 @@ class VotingInterface(tk.Toplevel):
         self.dni = dni
         self.auth_server = auth_server
         self.election_id = "Votación"
-        self.crypto_client=ClientCrypto()#genera el par de claves del usuario
+        self.ballot_box = ballot_box
+        self.bb_pub_pem = bb_pub_pem
+
         
         #Token de elegibilidad
         self.eligibility_token = None
 
-        #título de la ley(SIMULACION CAMBIAR)----
-        ttk.Label(self,text ="Propuesta de Ley: legalizar a los gatitos presidentes",
+        #título de la ley
+        ttk.Label(self,text ="Propuesta de Ley 1",
                   font=('Arial',12,'bold')).pack(pady=10)
-        
+        ClientCrypto
 
         #Etiqueta de estado
         self.status_label = ttk.Label(self,text="obteniendo token",foreground="blue")
         self.status_label.pack(pady=5)
+        self.eligibility_token = None
+        self.crypto_client = ClientCrypto(bb_pub_pem)
 
         #Frame para los botones de votación
         button_frame = ttk.Frame(self)
@@ -190,20 +191,62 @@ class VotingInterface(tk.Toplevel):
     
     def get_eligibility_token(self):
         """ Llamada AuthServer para obtener el token """
+        try:
+            #comprobamos con authserver que el user no haya votado ya esa ley
+            token = self.auth_server.issue_token(self.dni,self.election_id)
 
-        #Falta por hacer
+            self.eligibility_token = token
+
+            self.status_label.config(text= f"Token obtenido. DNI{self.dni [-4:]}...", foreground = "green")
+
+        except ValueError as e:
+            self.status_label.config(text = f"ERROR: {e}", foreground= "red")
+            messagebox.showerror("Error de Voto", str(e))
+            
+        #Para cualquier otro error
+        except Exception as e:
+            self.status_label.config(text = f"ERROR AS : {e}", foreground= "red")
+            messagebox.showerror("Error Crítico ",f"No se pudo obtener el token: {e}" )
+  
         
     
     def handle_vote(self, vote_choice:str):
         """ Cifra firma y prepara el voto para llevarlo a la urna """
-       
-        
-        #Generar la clave AES
-        aes_key = self.crypto_client.generate_aes_key() #No se si esta del todo bien generada !!!!!!!
-        
-        #cifrar la eleccion del voto
-        iv, encrypted_vote = self.crypto_client.encrypt_vote_aes(vote_choice, aes_key)
 
+        # verificación del token
+        if not self.eligibility_token:
+            messagebox.showerror("Error", "No se ha obtenido el token de elegibiidad. No se puede votar")
+            self.destroy()
+            return
+    
+        try: 
+            vote_package_json = self.crypto_client.make_packet(
+                self.election_id,
+                vote_choice,
+                self.eligibility_token)
+        except Exception as e:
+            messagebox.showerror("Error Criptográfico", f"Fallo al crear el paquete de voto cifrado: {e}")
+            self.destroy()
+            return
+        
+        try:
+            success = self.ballot_box.verify_and_record(vote_package_json)
+            if success:
+                messagebox.showinfo("Voto Exitoso", "Su voto ha sido registrado. Gracias por participar")
+            else:
+                #si el token es invalido
+                messagebox.showerror("Voto rechazado", f"voto rechazado por la Urna Electrónica (Fallo de seguridad/integridad)")
+        except Exception as e :
+            messagebox.showerror("Error de Urna", f"Fallo en la Urna al procesar el voto:{e}")
+            succes = False
+        
+        #Finalizar
+        self.destroy() #Cerrar ventana de votación
+
+
+    
+    
+   
         # preparar el mensaje para firmar
 
         #Firmar
@@ -224,5 +267,5 @@ if __name__ == "__main__":
     K_issue = os.urandom(32)
     AS = AuthServer(K_issue)
     BB = BallotBox(K_issue)
-    app = App(AS)
+    app = App(AS,BB,  BB.pub_pem)
     app.mainloop()

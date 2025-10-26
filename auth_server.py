@@ -21,7 +21,7 @@ def derive_pwd_hash(password, salt, iterations=200_000):
         algorithm=hashes.SHA256(),
         length=32,                         # tamaño normal
         salt= salt,
-        iterations=200_000
+        iterations=200_000,
     )
     derive = kdf.derive(password.encode()) # pasando a bytes + derivando
     return derive
@@ -93,9 +93,9 @@ class AuthServer:
         # si no existe... uno nuevo
         nonce = secrets.token_bytes(16)
         ts = int(time.time()).to_bytes(8, "big")
-        msg = (dni.encode() + b"|" + election_id.enconde() + b"|" + nonce +
+        msg = (dni.encode() + b"|" + election_id.encode() + b"|" + nonce +
                b"|" + ts)
-        mac = hmac.new(self.K_issue, msg, hashlib.sha256()).digest()
+        mac = hmac.new(self.K_issue, msg, hashlib.sha256).digest()
         # tag 32 bytes
         token = base64.urlsafe_b64encode(mac + nonce + ts).decode()
         # base64url( mac || nonce || ts
@@ -104,8 +104,8 @@ class AuthServer:
         con = sqlite3.connect(DB_PATH)
         cur = con.cursor()
         cur.execute("""
-            INSERT OR REPLACE INTO tokens(token_hash, election_id, 
-            used) VALUES (?, ?, 0)""", (th, election_id))
+            INSERT  INTO tokens(token_hash, election_id, 
+            used,dni) VALUES (?, ?, ?,?)""", (th, election_id,0,  dni))
         con.commit()
         con.close()
         return token

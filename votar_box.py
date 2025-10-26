@@ -93,7 +93,7 @@ class BallotBox:
                 return False
 
             cur.execute("UPDATE tokens SET used=1 WHERE token_hash=?", (th,))
-            cur.execute("INSERT INTO tallies(election_id,choice) VALUES(?,?)",
+            cur.execute("INSERT INTO tallies(election_id,choice_id) VALUES(?,?)",
                         (vote["election_id"], vote["choice"]))
             con.commit()
             return True
