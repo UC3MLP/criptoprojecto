@@ -29,6 +29,8 @@ def derive_pwd_hash(password, salt, iterations=200_000):
 
 def register_user(email, dni, password):
     """registro de usuario"""
+    if not password :
+        raise  ValueError("escribe una contraseña válida")
     if not re.match(r"^[A-Za-z0-9._%+-]+@gmail\.com$", email):
         # comprobar email - COMPROBACIÓN PUEDE QUE CAMBIE
         raise ValueError("Sólo se admite @gmail.com")
@@ -59,13 +61,15 @@ def login_user(email,password):
     # fetch la salt, pwd_hash y iterations
     if not row:
         # si no existe, nada
-        return False,  None
+        raise ValueError("Email  no encontrado o incorrecto")
+
     salt, stored_hash, iterations,dni = row  # la guardo
     test = derive_pwd_hash(password, salt, iterations)
     if hmac.compare_digest(test, stored_hash):
         return True,dni #Éxito, devolvemos true y dni
     else: 
-        return False, None # Error, devolvemos nada y false
+        raise ValueError(" Contraseña incorecta")
+        
     # si coinciden ? contraseña correcta y devuelve el dni asociado al correo 
 
 

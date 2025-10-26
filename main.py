@@ -112,20 +112,20 @@ class App(tk.Tk):
     
     #Lógica para el login
     def handle_login(self):
-            email = self.login_email_entry.get()
-            password = self.login_pwd_entry.get()
+        email = self.login_email_entry.get()
+        password = self.login_pwd_entry.get()
 
             #la función login _user de auth_server nos devuelve true o false y el DNI asociado
             # ya que es importante para despues y para el database
+        try:
             succes, dni_user=login_user(email,password)
-
             if succes:
-                #tras esto se llama a la siguiente ventana donde se realiza la votación
+                #tras esto se llama a la siguiente venxtana donde se realiza la votación
                 self.show_voting_interface(dni_user)
-            else:
-                self.status_label.config(text="Error de inicio de sesión, email ya está registrado o es incorrecto:", foreground="red")
+        except ValueError as e:
+            self.status_label.config(text =str(e),foreground='red')
 
-
+        
   #  Interfaz de votación
 
     def show_voting_interface(self,dni):
