@@ -157,7 +157,7 @@ class VotingInterface(tk.Toplevel):
         #Datos y módulos clave
         self.dni = dni
         self.auth_server = auth_server
-        self.election_id = "Votación"
+        self.election_id = "Ley 1"
         self.ballot_box = ballot_box
         self.bb_pub_pem = bb_pub_pem
 
@@ -166,14 +166,17 @@ class VotingInterface(tk.Toplevel):
         self.eligibility_token = None
 
         #título de la ley
-        ttk.Label(self,text ="Propuesta de Ley 1",
-                  font=('Arial',12,'bold')).pack(pady=10)
-        ClientCrypto
+        self.law_title_label= ttk.Label(self,text =f"Ley a votar:{self.election_id}",
+                  font=('Arial',12,'bold'))
+        self.law_title_label.pack(pady=10)
+        
+
+        #Boton para cambiar de ley
+        ttk.Button(self, text = 'Cambiar ley',command=self.show_election_selector).pack(pady=5)
 
         #Etiqueta de estado
         self.status_label = ttk.Label(self,text="obteniendo token",foreground="blue")
         self.status_label.pack(pady=5)
-        self.eligibility_token = None
         self.crypto_client = ClientCrypto(bb_pub_pem)
 
         #Frame para los botones de votación
@@ -185,40 +188,75 @@ class VotingInterface(tk.Toplevel):
         ttk.Button(button_frame, text='❌ Voto en contra', command= lambda: self.handle_vote("NO")).pack(side=tk.LEFT, padx= 15)
         ttk.Button(button_frame, text='⚪️ Abstención', command= lambda: self.handle_vote("ABSTENCIÓN")).pack(side=tk.LEFT, padx= 15)
 
-        #iniciar el proceso de obtener el token
-        self.get_eligibility_token()
+       
+
+    def show_election_selector(self):
+        """ Muestra una ventana para elegir una nueva ley y reiniciar la votación
+        """
+        laws= {"Ley 1": "Propuesta de Ley 1",
+               "Ley 2":"Propuesta de Ley 2",
+               "Ley 3": "Propuesta de Ley 3"
+               }
+        
+        #Configuración de la ventana de selección
+        selector_window = tk.Toplevel(self)
+        selector_window.title("Seleccionar Ley")
+        selector_window.transient(self)#hace que la ventana este arriba siempre
+
+        ttk.Label(selector_window, text = "Elige la Ley para la que quieres votas").pack(padx=20,pady=10)
+
+            #Gestor de la selección
+        def select_law(law_id, law_name):
+            #Cierra la ventana de selección anterior
+            selector_window.destroy()
+            self.election_id = law_id
+            self.law_title_label.config(text= f"Ley a votar: {self.election_id}")
+            self.status_label.config(text = f"Cambio a :{law_name}",foreground= "blue")
+
+            #Limpia el token anterior y reinicia el proceso de elegibilidad
+            self.eligibility_token = None
+            #Botones para cada ley
+        for law_name, law_id in laws.items():
+            ttk.Button(selector_window,text = law_name,
+                    command=lambda l_id=law_id,l_name=law_name:select_law(l_id,l_name)).pack(pady =5, padx=20)
 
     
     def get_eligibility_token(self):
         """ Llamada AuthServer para obtener el token """
+
+        if self.eligibility_token:
+            return True
         try:
             #comprobamos con authserver que el user no haya votado ya esa ley
             token = self.auth_server.issue_token(self.dni,self.election_id)
 
             self.eligibility_token = token
 
+            #Actualizar a la ley actual
+            self.law_title_label.config (text= f"Ley Actual: {self.election_id}")
             self.status_label.config(text= f"Token obtenido. DNI{self.dni [-4:]}...", foreground = "green")
+            return True
 
         except ValueError as e:
             self.status_label.config(text = f"ERROR: {e}", foreground= "red")
             messagebox.showerror("Error de Voto", str(e))
+            return False
             
         #Para cualquier otro error
         except Exception as e:
             self.status_label.config(text = f"ERROR AS : {e}", foreground= "red")
             messagebox.showerror("Error Crítico ",f"No se pudo obtener el token: {e}" )
+            return False
   
         
     
     def handle_vote(self, vote_choice:str):
         """ Cifra firma y prepara el voto para llevarlo a la urna """
 
-        # verificación del token
-        if not self.eligibility_token:
-            messagebox.showerror("Error", "No se ha obtenido el token de elegibiidad. No se puede votar")
+         #iniciar el proceso de obtener el token y verificar
+        if not self.get_eligibility_token():
             self.destroy()
             return
-    
         try: 
             vote_package_json = self.crypto_client.make_packet(
                 self.election_id,
@@ -246,17 +284,6 @@ class VotingInterface(tk.Toplevel):
 
     
     
-   
-        # preparar el mensaje para firmar
-
-        #Firmar
-        
-
-        #Obtener la clave pública(para que la urna verifique la firma)
-        
-        #Falta por hacer
-        #Envío a la urna electrónica
-
 
 
 
