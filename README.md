@@ -13,7 +13,7 @@ Para ejecutar esta aplicación, necesitarás tener instalado:
 
 ### Librerías Necesarias
 
-Las dos librerías externas  son **CustomTkinter** (para la interfaz) y 
+Las dos librerías externas son **CustomTkinter** (para la interfaz) y 
 **Cryptography**  (para los algoritmos criptográficos como AES-GCM, 
 RSA-OAEP, PBKDF2 y HMAC).
 
