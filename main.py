@@ -13,7 +13,7 @@ class App(ctk.CTk):
     def __init__(self,AuthServer,BallotBox,bb_pub_pem):
         super().__init__()
         self.auth_server = AuthServer # Guardamos la instancia del servidor de auteticación
-        self.title("sistema de votación-Acceso")
+        self.title("Sistema de votación - Acceso")
         self.geometry("500x500")
         self.ballot_box = BallotBox
         self.bb_pub_pem = bb_pub_pem
@@ -42,6 +42,7 @@ class App(ctk.CTk):
         self.create_register_widgets()
 
     def create_login_widgets(self):
+        """widgets para login"""
         login_frame=self.tabview.tab("Iniciar Sesión")
 
 
@@ -67,6 +68,7 @@ class App(ctk.CTk):
                       width=200, height=35, font=("Arial",13,"bold")).grid(row =2,column=0, columnspan=2, pady=30)
 
     def create_register_widgets(self):
+        """widgets para register"""
         register_frame = self.tabview.tab("Registrarse")
         #etiquetas y campos de entrada
         #DNI
@@ -91,8 +93,9 @@ class App(ctk.CTk):
                       font=("Arial",13,"bold")).grid(row =3,column=0, columnspan=2, pady=30)
 
 
-    #lógica para el register
+    #register
     def handle_register(self):
+        """lógica para registrarse"""
         dni = self.reg_dni_entry.get()
         email =self.reg_email_entry.get()
         password = self.reg_pwd_entry.get()
@@ -103,6 +106,7 @@ class App(ctk.CTk):
         try:
             register_user(email,dni,password)
             self.status_label.configure(text="Registro completado, debes iniciar sesión",text_color="green")
+            # si funciona, se sigue
             # Limpiar campos despues del registro
             self.reg_dni_entry.delete(0,tk.END)
             self.reg_email_entry.delete(0,tk.END)
@@ -122,17 +126,18 @@ class App(ctk.CTk):
                 self.status_label.configure(text=f"Error :{e}", text_color="red")
 
     
-    #Lógica para el login
+    #login
     def handle_login(self):
+        """lógica para el login"""
         email = self.login_email_entry.get()
         password = self.login_pwd_entry.get()
 
-            #la función login _user de auth_server nos devuelve true o false y el DNI asociado
-            # ya que es importante para despues y para el database
+        # la función login _user de auth_server nos devuelve True o False y
+        # el DNI asociado ya que es importante para después y para el database
         try:
-            succes, dni_user=login_user(email,password)
-            if succes:
-                #tras esto se llama a la siguiente venxtana donde se realiza la votación
+            success, dni_user=login_user(email,password)
+            if success:
+                #tras esto se llama a la siguiente ventana donde se realiza la votación
                 self.show_voting_interface(dni_user)
         except ValueError as e:
             self.status_label.configure(text =str(e),text_color='red')
@@ -141,10 +146,10 @@ class App(ctk.CTk):
   #  Interfaz de votación
 
     def show_voting_interface(self,dni):
-        #plataforma de votacion
+        """plataforma de votación"""
         self.withdraw() #ocultamos la ventana principal
+
         try:
-                
             #Abre la nueva ventana 
             Voting_window = VotingInterface(self,dni,self.auth_server,self.ballot_box, self.bb_pub_pem)
 
@@ -152,13 +157,14 @@ class App(ctk.CTk):
         except Exception as e:
             print(f"Error en ventana de votación {e}")
             messagebox.showerror("Error", f"Error al abrir ventana de votación {e}")
-        finally:
 
+        finally:
             #despues de votar te lleva a login de nuevo
             self.deiconify()
 
-# Interfaz para la votación
+
 class VotingInterface(ctk.CTkToplevel):
+    """interfaz para la votación"""
     def __init__(self, master,dni,auth_server, ballot_box, bb_pub_pem):
         #tk.Toplevel crea una ventana secundaria
         super().__init__(master)
@@ -191,11 +197,7 @@ class VotingInterface(ctk.CTkToplevel):
         self.status_label.pack(pady=10)
 
 
-
         self.crypto_client = ClientCrypto(bb_pub_pem)
-
-
-
 
 
         #Frame para los botones de votación
@@ -213,14 +215,14 @@ class VotingInterface(ctk.CTkToplevel):
        
 
     def show_election_selector(self):
-        """ Muestra una ventana para elegir una nueva ley y reiniciar la votación
-        """
+        """Muestra una ventana para elegir una nueva ley y reiniciar la
+        votación"""
         laws= {"Ley 1": " Ley 1",
                "Ley 2":" Propuesta de Ley 2",
                "Ley 3": " Propuesta de Ley 3"
                }
         
-        #configureuración de la ventana de selección
+        #configuración de la ventana de selección
         selector_window = ctk.CTkToplevel(self)
         selector_window.title("Seleccionar Ley")
         selector_window.geometry("350x300")
@@ -248,7 +250,7 @@ class VotingInterface(ctk.CTkToplevel):
 
     
     def get_eligibility_token(self):
-        """ Llamada AuthServer para obtener el token """
+        """Llama a AuthServer para obtener el token"""
 
         if self.eligibility_token:
             return True
@@ -277,7 +279,7 @@ class VotingInterface(ctk.CTkToplevel):
         
     
     def handle_vote(self, vote_choice:str):
-        """ Cifra firma y prepara el voto para llevarlo a la urna """
+        """prepara el voto para llevarlo a la urna"""
 
          #iniciar el proceso de obtener el token y verificar
         if not self.get_eligibility_token():
