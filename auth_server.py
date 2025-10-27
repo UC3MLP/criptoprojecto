@@ -68,7 +68,7 @@ def login_user(email,password):
     if hmac.compare_digest(test, stored_hash):
         return True,dni #Éxito, devolvemos true y dni
     else: 
-        raise ValueError(" Contraseña incorecta")
+        raise ValueError("Contraseña incorrecta")
         
     # si coinciden ? contraseña correcta y devuelve el dni asociado al correo 
 
@@ -92,7 +92,7 @@ class AuthServer:
         if row:
             # ya hay token emitido. no repetición!
             con.close()
-            raise ValueError("No se permite votar dos veces")
+            raise ValueError("No se permite votar dos veces.")
 
         # si no existe... uno nuevo
         nonce = secrets.token_bytes(16)

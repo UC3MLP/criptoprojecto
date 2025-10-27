@@ -119,9 +119,11 @@ class App(ctk.CTk):
         except Exception as e:
             # Error de base de datos en caso de que existan por ejemplo ya el dni o el email
             if "UNIQUE constraint failed: users.dni" in str(e) :
-                self.status_label.configure(text="Error Registro DNI ya está registrado", text_color="red")
+                self.status_label.configure(text="Error Registro: DNI ya "
+                                                 "está registrado", text_color="red")
             elif "UNIQUE constraint failed: users.email" in str(e) :
-                self.status_label.configure(text="Error Registro Email ya está registrado", text_color="red")
+                self.status_label.configure(text="Error Registro: Email ya "
+                                                 "está registrado", text_color="red")
             else:
                 self.status_label.configure(text=f"Error :{e}", text_color="red")
 
@@ -193,7 +195,8 @@ class VotingInterface(ctk.CTkToplevel):
                       height=30).pack(pady=10)
 
         #Etiqueta de estado
-        self.status_label = ctk.CTkLabel(self,text="seleccione su voto",font=("Arial",12),text_color="white")
+        self.status_label = ctk.CTkLabel(self,text="Seleccione su voto:",
+                                         font=("Arial",12),text_color="white")
         self.status_label.pack(pady=10)
 
 
@@ -205,11 +208,11 @@ class VotingInterface(ctk.CTkToplevel):
         button_frame.pack(pady=30)
 
         #Botones de vot
-        ctk.CTkButton(button_frame, text='✅ Voto a favor', command= lambda: self.handle_vote("SI"), width=150, height=40,fg_color="green",
+        ctk.CTkButton(button_frame, text='Voto a favor', command= lambda: self.handle_vote("SI"), width=150, height=40,fg_color="green",
                    hover_color="darkgreen",font=("Arial",12,"bold")).pack(side=tk.LEFT, padx= 10)
-        ctk.CTkButton(button_frame, text='❌ Voto en contra', command= lambda: self.handle_vote("NO"), width=150, height=40,fg_color="red",
+        ctk.CTkButton(button_frame, text='Voto en contra', command= lambda: self.handle_vote("NO"), width=150, height=40,fg_color="red",
                    hover_color="darkred",font=("Arial",12,"bold")).pack(side=tk.LEFT, padx= 10)
-        ctk.CTkButton(button_frame, text='⚪️ Abstención', command= lambda: self.handle_vote("ABSTENCIÓN"), width=150, height=40,fg_color="gray",
+        ctk.CTkButton(button_frame, text='Abstención', command= lambda: self.handle_vote("ABSTENCIÓN"), width=150, height=40,fg_color="gray",
                    hover_color="darkgray",font=("Arial",12,"bold")).pack(side=tk.LEFT, padx= 10)
 
        
@@ -298,7 +301,8 @@ class VotingInterface(ctk.CTkToplevel):
         try:
             success = self.ballot_box.verify_and_record(vote_package_json)
             if success:
-                messagebox.showinfo("Voto Exitoso", "Su voto ha sido registrado. Gracias por participar")
+                messagebox.showinfo("Voto Exitoso", "Su voto ha sido "
+                                                    "registrado. Gracias por participar.")
             else:
                 #si el token es invalido
                 messagebox.showerror("Voto rechazado", f"voto rechazado por la Urna Electrónica (Fallo de seguridad/integridad)")
