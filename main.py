@@ -26,8 +26,6 @@ class App(ctk.CTk):
         #crear pestañas
         self.tabview.add("Iniciar Sesión")
         self.tabview.add("Registrarse")
-        self.status_label =ctk.CTkLabel(self,text="", font=('Arial',10,'bold'))
-        self.status_label.pack(pady= 5)
 
         #Etiqueta de estado
         self.status_label=ctk.CTkLabel(
@@ -58,12 +56,9 @@ class App(ctk.CTk):
         self.login_email_entry.grid(row=0,column=1,pady=10,padx=10)
 
         #Contraseña
-        ctk.CTkLabel(
-            login_frame,
-            text ="Contraseña:",
-            font =("Arial",13)).grid(row =1, column=0, sticky ='w',pady =10,padx=20)
+        ctk.CTkLabel(login_frame,text ="Contraseña:",  font =("Arial",13)).grid(row =1, column=0, sticky ='w',pady =10,padx=20)
         
-        self.login_pwd_entry = ctk.CTkEntry(login_frame,width=250, placeholder_text="Contraseña")
+        self.login_pwd_entry = ctk.CTkEntry(login_frame,width=250,show="*", placeholder_text="Contraseña")
 
         self.login_pwd_entry.grid(row=1,column=1,pady=10,padx=10) 
 
@@ -73,16 +68,15 @@ class App(ctk.CTk):
 
     def create_register_widgets(self):
         register_frame = self.tabview.tab("Registrarse")
-        
         #etiquetas y campos de entrada
         #DNI
         ctk.CTkLabel(register_frame, text ="DNI:", font=('Arial',13)).grid(row=0,column =0,sticky='w', pady=10, padx=20)
-        self.reg_dni_entry = ctk.CTkEntry(register_frame,width=250, placeholder_text="12345677A")
+        self.reg_dni_entry = ctk.CTkEntry(register_frame,width=250, placeholder_text="12345678A")
         self.reg_dni_entry.grid(row=0,column=1,pady=5,padx=5)
 
         #Email
         ctk.CTkLabel(register_frame, text ="Email:", font=('Arial',13)).grid(row=1,column =0,sticky='w', pady=10, padx=20)
-        self.reg_email_entry = ctk.CTkEntry(register_frame,width=250, placeholder_text="corrreo@gmail.com")
+        self.reg_email_entry = ctk.CTkEntry(register_frame,width=250, placeholder_text="correo@gmail.com")
         self.reg_email_entry.grid(row=1,column=1,pady=10,padx=10)
 
    
@@ -117,11 +111,13 @@ class App(ctk.CTk):
             self.tabview.set("Iniciar Sesión")
 
         except ValueError as e:
-            self.status_label.configure(text=f"Error de validadción:{e}", text_color="red")
+            self.status_label.configure(text=f"Error de validación:{e}", text_color="red")
         except Exception as e:
             # Error de base de datos en caso de que existan por ejemplo ya el dni o el email
-            if "UNIQUE constrait failed" in str(e):
-                self.status_label.configure(text="Error Registro DNI o Email ya está registrado", text_color="red")
+            if "UNIQUE constraint failed: users.dni" in str(e) :
+                self.status_label.configure(text="Error Registro DNI ya está registrado", text_color="red")
+            elif "UNIQUE constraint failed: users.email" in str(e) :
+                self.status_label.configure(text="Error Registro Email ya está registrado", text_color="red")
             else:
                 self.status_label.configure(text=f"Error :{e}", text_color="red")
 
@@ -191,7 +187,7 @@ class VotingInterface(ctk.CTkToplevel):
                       height=30).pack(pady=10)
 
         #Etiqueta de estado
-        self.status_label = ctk.CTkLabel(self,text="obteniendo token",font=("Arial",12),text_color="white")
+        self.status_label = ctk.CTkLabel(self,text="seleccione su voto",font=("Arial",12),text_color="white")
         self.status_label.pack(pady=10)
 
 
@@ -219,9 +215,9 @@ class VotingInterface(ctk.CTkToplevel):
     def show_election_selector(self):
         """ Muestra una ventana para elegir una nueva ley y reiniciar la votación
         """
-        laws= {"Ley 1": "Ley 1",
-               "Ley 2":"Propuesta de Ley 2",
-               "Ley 3": "Propuesta de Ley 3"
+        laws= {"Ley 1": " Ley 1",
+               "Ley 2":" Propuesta de Ley 2",
+               "Ley 3": " Propuesta de Ley 3"
                }
         
         #configureuración de la ventana de selección
