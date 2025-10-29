@@ -6,7 +6,7 @@ def db_init():
     con = sqlite3.connect("votes_app.db") # creating database
     cur = con.cursor()                    # creating necessary cursor
     cur.execute("CREATE TABLE IF NOT EXISTS users(email TEXT UNIQUE, "
-                "dni TEXT UNIQUE, salt BLOB, pwd_hash BLOB, iterations "
+                "dni BLOB, salt BLOB, pwd_hash BLOB, iterations "
                 "INTEGER)")
     # for saving users
     cur.execute("CREATE TABLE IF NOT EXISTS tokens(token_hash TEXT PRIMARY "
