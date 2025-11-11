@@ -139,10 +139,37 @@ class App(ctk.CTk):
         try:
             success, dni_user=login_user(email,password)
             if success:
+
+                #Verificación de integridad
+                is_integirty_ok = self.ballot_box.audit_integrity()
+                if not is_integirty_ok:
+                    print("Auditoría de integridad fallida, bloqueando votaciones")
+          
+                    self.status_label.configure(
+                        text ="Error: los votos han sido manipulados.",
+                        text_color = "red"
+                    )
+
+                    #popup de error
+                    messagebox.showerror(
+                        "Error Críticp de Integridad",
+                        "No se puede continuar. La base de datos de votos(Urna) ha sido corrompida"
+                    )
+                    return
+                #limpiamos campos de login
+                self.login_email_entry.delete(0,tk.END)
+                self.login_pwd_entry.delete(0,tk.END)
                 #tras esto se llama a la siguiente ventana donde se realiza la votación
                 self.show_voting_interface(dni_user)
         except ValueError as e:
             self.status_label.configure(text =str(e),text_color='red')
+
+        except Exception as e:
+            self.status_label.configure(
+                text = f"Error inesperado durante el login{e}",
+                text_color = "red"
+            )
+            print(f"Eror inesperado en el handle_login{e}")
 
         
   #  Interfaz de votación
@@ -243,7 +270,7 @@ class VotingInterface(ctk.CTkToplevel):
             self.status_label.configure(text = f"Cambio a :{law_name}",text_color= "white")
 
             #Limpia el token anterior y reinicia el proceso de elegibilidad
-            self.eligibility_token = None
+            self.eligibility_token = None 
             #Botones para cada ley
         for law_name, law_id in laws.items():
             ctk.CTkButton(selector_window,text = law_name,

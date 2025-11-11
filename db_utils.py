@@ -13,8 +13,8 @@ def db_init():
                 "KEY, election_id TEXT, used INTEGER, dni TEXT, UNIQUE(dni, "
                 "election_id))")
     # for saving tokens from auth server
-    cur.execute("CREATE TABLE IF NOT EXISTS tallies(election_id TEXT, "
-                "choice_id TEXT)")
+    cur.execute("CREATE TABLE IF NOT EXISTS tallies(id INTEGER PRIMARY KEY AUTOINCREMENT, election_id TEXT NOT NULL, "
+                "choice_id TEXT NOT NULL, signature BLOB  NOT NULL)")
     # for saving anonymous votes
     con.commit()
     con.close()
