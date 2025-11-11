@@ -75,8 +75,7 @@ def register_user(email, dni, password):
     salt = os.urandom(16)  # 128 bits aleatorios
     iterations = 200_000
     pwd_hash_password = derive_pwd_hash(password, salt, iterations)
-    dni_cifrado = dni_cifrar(dni)
-    dni_cifrado_b64 = base64.urlsafe_b64encode(dni_cifrado).decode()
+    dni_cifrado_b64 = dni_cifrar(dni) #Dni cifrado que usaremos
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
     cur.execute("""
@@ -157,4 +156,4 @@ class AuthServer:
         con.commit()
         con.close()
         return token
-        # devuelve token entero
+        # devuelve token entero 
