@@ -34,6 +34,7 @@ class BallotBox:
             serialization.Encoding.PEM,
             serialization.PublicFormat.SubjectPublicKeyInfo
         )  # clave PÚBLICA!
+        self.public_key = self._priv.public_key()
 
     def verify_and_record(self, packet_json: str) -> bool:
         """recibe el paquete en json, lo descifra y devuelve T/F si lo
@@ -128,7 +129,7 @@ class BallotBox:
             with sqlite3.connect(DB_PATH) as con:
                 cur = con.cursor()
                 rows = cur. execute(
-                    "SELECT election_id, choice_id signature FROM tallies ORDER BY rowid"
+                    "SELECT election_id, choice_id, signature FROM tallies ORDER BY rowid"
                 ).fetchall()
 
                 if not rows:
@@ -142,7 +143,7 @@ class BallotBox:
                         return False # Voto sin firma
                     
                     #reconstruir los datos exactamente como se firmaron
-                    vote_data = f"{election_id}|{choice_id}".enconde('utf-8')
+                    vote_data = f"{election_id}|{choice_id}".encode('utf-8')
 
                     try: 
                         self.public_key.verify(

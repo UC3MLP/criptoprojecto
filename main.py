@@ -341,12 +341,6 @@ class VotingInterface(ctk.CTkToplevel):
         self.destroy() #Cerrar ventana de votación
 
 
-    
-    
-
-
-
-
 if __name__ == "__main__":
     db_init()
     # Clave compartida AS/BB para HMAC de tokens (32 bytes)
