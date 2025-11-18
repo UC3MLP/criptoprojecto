@@ -22,7 +22,7 @@ DNI_ENCRYPTION_KEY = b"12345678901234567890123456789012"
 
 
 def derive_pwd_hash(password, salt, iterations=200_000):
-    """transforma contraseña en hash de 32 bytes con PBKDF2"""
+    """transforma la contraseña en hash de 32 bytes con PBKDF2"""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,                         # tamaño normal
