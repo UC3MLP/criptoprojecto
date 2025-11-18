@@ -7,9 +7,8 @@ import secrets
 import sqlite3
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes,serialization
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import re
 from db_utils import DB_PATH
 
@@ -116,45 +115,20 @@ def login_user(email,password):
 
 # tokens de elegibilidad
 class AuthServer:
-    def __init__(self, password_str, key_file= "auth_priv.pem"):
+    def __init__(self, issue_key: bytes):
         # issue_key = clave simétrica secreta compartida entre AS y BB.
         # mirar posibilidad de separar AS y BB, para que no compartan la clave
-        self.key_file = key_file
-        if os.path.exists(self.key_file):
-            print(f"[AuthServer]Cargando clave privada desde{self.key_file}")
-            self._priv_key = self.load_private_key(password_str)
-        else:
-            print("[AuthServer]Generando nueva clave privada RSA")
-            self._priv_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
-            self.save_private_key(password_str)
-        #exponemos la clave publica para que la urna pueda verificar(provisional, hace falta certificados)
-        self.public_key = self._priv_key.public_key()
-
-    def save_private_key(self,password_str):
-        password_bytes = password_str.encode('utf-8')
-        encryption = serialization.BestAvailableEncryption(password_bytes)
-        pem =self._priv_key.private_bytes(
-            encoding = serialization.Encoding.PEM,
-            format = serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=encryption
-        )
-
-        with open(self.key_file,"wb")as f:
-            f.write(pem)
-
-    def load_private_key(self,password_str):
-        password_bytes = password_str.encode('utf-8')
-        with open(self.key_file,"rb") as f:
-            return serialization.load_pem_private_key(f.read(),password = password_bytes)
-        
+        self.K_issue = issue_key
 
     def issue_token(self, dni_claro, election_id):
         """generar un token (un solo uso) que permite a usuario votar sin
-        revelar su identidad(Ahora firmado digitalmente)"""
+        revelar su identidad"""
+        dni_cifrado = dni_cifrar(dni_claro)
         con = sqlite3.connect(DB_PATH)
+        cur = con.cursor()
         # usamos hash dni como índice
         dni_hash = hashlib.sha256(dni_claro.encode()).hexdigest()
-        row = con.execute("""
+        row = cur.execute("""
             SELECT token_hash, used FROM tokens WHERE dni=? AND 
             election_id=?""", (dni_hash, election_id)).fetchone()
 
@@ -163,29 +137,23 @@ class AuthServer:
             con.close()
             raise ValueError("No se permite votar dos veces.")
 
-        # si no existe token ya creado, creamos  uno nuevo
+        # si no existe... uno nuevo
         nonce = secrets.token_bytes(16)
         ts = int(time.time()).to_bytes(8, "big")
-        data_to_sign = (dni_claro.encode() + b"|" + election_id.encode() + b"|" + nonce +
+        msg = (dni_claro.encode() + b"|" + election_id.encode() + b"|" + nonce +
                b"|" + ts)
-        # Firma digital
-        signature = self._priv_key.sign(
-            data_to_sign,
-            padding.PSS(
-                mgf = padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        # el token ahora es ( firma || nonce || ts
-        token_bytes= signature+nonce+ts
-        token_b64=base64.urlsafe_b64decode(token_bytes).decode()
-        # guardar el hash del token para evitar reuso
-        token_hash= hashlib.sha256(token_b64.encode()).hexdigest()
-        con.execute("""
+        mac = hmac.new(self.K_issue, msg, hashlib.sha256).digest()
+        # tag 32 bytes
+        token = base64.urlsafe_b64encode(mac + nonce + ts).decode()
+        # base64url( mac || nonce || ts
+        th = hashlib.sha256(token.encode()).hexdigest()
+        # hashear token codificado
+        con = sqlite3.connect(DB_PATH)
+        cur = con.cursor()
+        cur.execute("""
             INSERT  INTO tokens(token_hash, election_id, 
-            used,dni) VALUES (?, ?, ?,?)""", (token_hash, election_id,0,  dni_hash))
+            used,dni) VALUES (?, ?, ?,?)""", (th, election_id,0,  dni_hash))
         con.commit()
         con.close()
-        return token_b64
+        return token
         # devuelve token entero 
