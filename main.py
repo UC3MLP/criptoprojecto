@@ -1,4 +1,6 @@
 import os
+import sys
+import logging
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox
@@ -7,6 +9,15 @@ from auth_server import AuthServer, register_user, login_user
 from votar_box import BallotBox
 from crypto_client import ClientCrypto
 
+#Inicializacion y configuracion de logging para el archivo de logs
+logging.basicConfig(
+    level= logging.INFO,
+    format = "%(asctime)s [%levelname)s]%(message)s",
+    handlers=[
+        logging.FileHandler("registro_votacion.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 # Inicializacion de tkinter
 
 class App(ctk.CTk):
@@ -206,7 +217,6 @@ class VotingInterface(ctk.CTkToplevel):
         self.election_id = "Ley 1"
         self.ballot_box = ballot_box
         self.bb_pub_pem = bb_pub_pem
-
         
         #Token de elegibilidad
         self.eligibility_token = None
@@ -335,7 +345,7 @@ class VotingInterface(ctk.CTkToplevel):
                 messagebox.showerror("Voto rechazado", f"voto rechazado por la Urna Electrónica (Fallo de seguridad/integridad)")
         except Exception as e :
             messagebox.showerror("Error de Urna", f"Fallo en la Urna al procesar el voto:{e}")
-            succes = False
+            success = False
         
         #Finalizar
         self.destroy() #Cerrar ventana de votación
@@ -344,8 +354,7 @@ class VotingInterface(ctk.CTkToplevel):
 if __name__ == "__main__":
     db_init()
     # Clave compartida AS/BB para HMAC de tokens (32 bytes)
-    K_issue = os.urandom(32)
-    AS = AuthServer(K_issue)
-    BB = BallotBox(K_issue)
+    AS= AuthServer()
+    BB = BallotBox(auth_public_key=AS.public_key)
     app = App(AS,BB,  BB.pub_pem)
     app.mainloop()

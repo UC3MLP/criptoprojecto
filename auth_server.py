@@ -7,7 +7,8 @@ import secrets
 import sqlite3
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import re
 from db_utils import DB_PATH
@@ -19,8 +20,6 @@ DNI_ENCRYPTION_KEY = b"12345678901234567890123456789012"
 # pbkdf2 = función criptográfica utilizada para derivar claves de contraseñas
 # de forma segura
 # DERIVACIÓN DE LA PBKDF2
-
-
 def derive_pwd_hash(password, salt, iterations=200_000):
     """transforma la contraseña en hash de 32 bytes con PBKDF2"""
     kdf = PBKDF2HMAC(
@@ -115,16 +114,27 @@ def login_user(email,password):
 
 # tokens de elegibilidad
 class AuthServer:
-    def __init__(self, issue_key: bytes):
-        # issue_key = clave simétrica secreta compartida entre AS y BB.
-        # mirar posibilidad de separar AS y BB, para que no compartan la clave
-        self.K_issue = issue_key
+    """ Servidor de utenticación que emite tokens firmados con RSA """
+    def __init__(self):
+        """ Genera claves RSA en memoria(volátiles)(HAY QUE CAMBIARLO PARA QUE LAS CLAVES SE GUARDEN EN EL DISCO) """
+        #pa los logs pendiente
+        print("[AuthServer] Generando clave RSA")
+        self._priv_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=3072
+        )
+        self. public_key = self._priv_key.public_key()
+
+        self.public_key_pem = self.public_key.public_bytes(
+            encoding = serialization.Encoding.PEM,
+            format= serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        print("[AuthServer] Claves RSA generadas")
 
     def issue_token(self, dni_claro, election_id):
         """generar un token (un solo uso) que permite a usuario votar sin
         revelar su identidad"""
-        dni_cifrado = dni_cifrar(dni_claro)
-        con = sqlite3.connect(DB_PATH)
+        con = sqlite3.connect(DB_PATH, timeout=10)
         cur = con.cursor()
         # usamos hash dni como índice
         dni_hash = hashlib.sha256(dni_claro.encode()).hexdigest()
@@ -133,27 +143,79 @@ class AuthServer:
             election_id=?""", (dni_hash, election_id)).fetchone()
 
         if row:
-            # ya hay token emitido. no repetición!
-            con.close()
-            raise ValueError("No se permite votar dos veces.")
+            token_hash_db, used_db = row
+            if used_db == 1:
+                # ya hay token emitido. no repetición!
+                con.close()
+                print(f"[AuthServer] el Usuario ya gasto su voto")
+                raise ValueError("No se permite votar dos veces.")
+            else:
+                print(f"usuario tenia el token sin usar, re emitiendo")
+
+                cur.execute("DELETE FROM tokens WHERE token_hash=?", (token_hash_db,))
 
         # si no existe... uno nuevo
+
+        #Creamos componentes del token
         nonce = secrets.token_bytes(16)
         ts = int(time.time()).to_bytes(8, "big")
-        msg = (dni_claro.encode() + b"|" + election_id.encode() + b"|" + nonce +
-               b"|" + ts)
-        mac = hmac.new(self.K_issue, msg, hashlib.sha256).digest()
+
+
+
+        #Construimos el mensaje a firmar
+        #Formato : dni_hash || election_id || nonce || timestamp
+        election_id_bytes = election_id.encode('utf-8')
+        #Guardamos la longitud del id para desempaquetarlo luego 
+        election_id_len = len(election_id_bytes).to_bytes(2,"big")
+
+        data_to_sign = (
+            dni_hash.encode('utf-8')+ b"|"+
+            election_id_bytes + b"|"+
+            nonce + b"|"+
+            ts
+        )
+
+
+
+
+        #Firma con RSA-PSS
+        signature = self._priv_key.sign(
+            data_to_sign,
+            padding.PSS(
+                mgf= padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        
+        
+        #Empaquetamos el token
+        #El token es igual a firma||dni_hash||election_id_len(2)||election_id||nonce||ts
+        token_bytes = (
+            signature+
+            dni_hash.encode('utf-8')+
+            election_id_len +
+            election_id_bytes +
+            nonce +
+            ts
+
+        )
+
         # tag 32 bytes
-        token = base64.urlsafe_b64encode(mac + nonce + ts).decode()
-        # base64url( mac || nonce || ts
-        th = hashlib.sha256(token.encode()).hexdigest()
-        # hashear token codificado
+        token_b64 = base64.urlsafe_b64encode(token_bytes).decode()
+
+
+        #Guardamos el hash del token en BD
+        token_hash= hashlib.sha256(token_b64.encode()).hexdigest()
+        
+
         con = sqlite3.connect(DB_PATH)
         cur = con.cursor()
         cur.execute("""
             INSERT  INTO tokens(token_hash, election_id, 
-            used,dni) VALUES (?, ?, ?,?)""", (th, election_id,0,  dni_hash))
+            used,dni) VALUES (?, ?, ?,?)""", (token_hash, election_id,0,  dni_hash))
         con.commit()
         con.close()
-        return token
+        print(f"[AuthServer] Token firmado emitido para ...{dni_claro[-4:]}")
+        return token_b64
         # devuelve token entero 
