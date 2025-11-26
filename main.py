@@ -362,8 +362,8 @@ if __name__ == "__main__":
         # $env:AUTH_KEY_PASSWORD="auth"
         # $env:BALLOT_KEY_PASSWORD="ballot"
         # en cmd
-        # set AUTH_KEY_PASSWORD="auth"
-        # set BALLOT_KEY_PASSWORD="ballot"
+        # set AUTH_KEY_PASSWORD=auth
+        # set BALLOT_KEY_PASSWORD=ballot
         # python main.py
     except KeyError as e:
         missing = e.args[0]

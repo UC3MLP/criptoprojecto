@@ -77,3 +77,10 @@ para root (4096 bits pq es el estandar recomendado): root
 para subroot (4096 bits): subroot
 para auth: auth
 para ballotbox: ballot
+
+
+### Cambios :
+
+Clave DNI Hardcodeada: DNI_ENCRYPTION_KEY está escrita en el código (1234...). Debería cargarse de variable de entorno o fichero seguro.
+
+Hacer que nadie se pueda meter a cambiar el used a 0 o a 1 generando el hash del ultimo voto con el anterior

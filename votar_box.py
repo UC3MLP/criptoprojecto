@@ -50,9 +50,6 @@ class BallotBox:
 
         print("[BallotBox] Iniciando Urna")
         self.auth_public_key = auth_public_key
-        # Generamos claves RSA 
-        self._priv = rsa.generate_private_key(public_exponent=65537, key_size=3072)
-        
         # Exportamos la pública para el cliente
         self.pub_pem = self._priv.public_key().public_bytes(
             serialization.Encoding.PEM,

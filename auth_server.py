@@ -138,13 +138,7 @@ class AuthServer:
         print(f"[AuthServer] Clave RSA cargada.")
 
 
-        #pa los logs pendiente
-        print("[AuthServer] Generando clave RSA")
-        self._priv_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=3072
-        )
-        self. public_key = self._priv_key.public_key()
+        self.public_key = self._priv_key.public_key()
 
         self.public_key_pem = self.public_key.public_bytes(
             encoding = serialization.Encoding.PEM,
