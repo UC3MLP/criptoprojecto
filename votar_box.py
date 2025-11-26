@@ -8,6 +8,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag, InvalidSignature
 from db_utils import DB_PATH
+from pki import (BALLOT_KEY_PATH, BALLOT_CERT_PATH, verify_with_openssl,
+                 load_private_key, load_public_key)
 
 
 def b64(b):
@@ -25,10 +27,27 @@ class BallotBox:
     Clase que simula la urna electronica "BB" servidor de recepción de votos.
     """
 
-    def __init__(self,auth_public_key:bytes):
-
+    def __init__(self, auth_public_key:bytes, key_password: str):
         """ Incializa la urna con la clave publica de authserver
-          """
+          key_password = passphrase usada en el openssl"""
+
+        print("[BallotBox] Verificando certificado propio contra la PKI.")
+        if not verify_with_openssl(BALLOT_CERT_PATH):
+            raise RuntimeError("Certificado NO válido según la PKI.")
+
+        print("[BallotBox] Cargando clave privada RSA de BallotBox.")
+        self._priv = load_private_key(BALLOT_KEY_PATH, password=key_password)
+
+        # clave pública desde el certificado
+        self.public_key = load_public_key(BALLOT_CERT_PATH)
+
+        # pública propia. para cifrar clave de sesión del voto
+        self.pub_pem = self.public_key.public_bytes(serialization.Encoding.PEM,
+                            serialization.PublicFormat.SubjectPublicKeyInfo)
+
+        print(f"[BallotBox] Clave RSA cargada.")
+
+
         print("[BallotBox] Iniciando Urna")
         self.auth_public_key = auth_public_key
         # Generamos claves RSA 

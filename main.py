@@ -353,8 +353,26 @@ class VotingInterface(ctk.CTkToplevel):
 
 if __name__ == "__main__":
     db_init()
-    # Clave compartida AS/BB para HMAC de tokens (32 bytes)
-    AS= AuthServer()
-    BB = BallotBox(auth_public_key=AS.public_key)
-    app = App(AS,BB,  BB.pub_pem)
+
+    try:
+        AUTH_KEY_PASSWORD = os.environ["AUTH_KEY_PASSWORD"]
+        BALLOT_KEY_PASSWORD = os.environ["BALLOT_KEY_PASSWORD"]
+        # hay que poner cuando se quiere ejecutar:
+        # en powershell
+        # $env:AUTH_KEY_PASSWORD="auth"
+        # $env:BALLOT_KEY_PASSWORD="ballot"
+        # en cmd
+        # set AUTH_KEY_PASSWORD="auth"
+        # set BALLOT_KEY_PASSWORD="ballot"
+        # python main.py
+    except KeyError as e:
+        missing = e.args[0]
+        print(f"ERROR: falta la variable de entorno {missing}."
+              f"Debes hacer 'export ...' antes de ejecutar")
+        sys.exit(1)
+
+    AS= AuthServer(key_password=AUTH_KEY_PASSWORD)
+    BB = BallotBox(auth_public_key=AS.public_key,
+                   key_password=BALLOT_KEY_PASSWORD)
+    app = App(AS, BB, BB.pub_pem)
     app.mainloop()

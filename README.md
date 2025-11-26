@@ -70,3 +70,10 @@ Si ese comando no funciona, prueba usando este otro:
 ```bash
 python3 -m pip install  cryptography
 ```
+
+### CONTRASEÑAS:
+
+para root (4096 bits pq es el estandar recomendado): root
+para subroot (4096 bits): subroot
+para auth: auth
+para ballotbox: ballot

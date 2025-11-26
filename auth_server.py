@@ -12,6 +12,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import re
 from db_utils import DB_PATH
+from pki import (AUTH_KEY_PATH, AUTH_CERT_PATH, verify_with_openssl,
+                 load_private_key, load_public_key)
 
 # clave maestra para cifrar DNIS: ESTO NO TIENE QUE ESTAR EN EL CÓDIGO
 # EN UN PROGRAMA REAL
@@ -115,8 +117,27 @@ def login_user(email,password):
 # tokens de elegibilidad
 class AuthServer:
     """ Servidor de utenticación que emite tokens firmados con RSA """
-    def __init__(self):
-        """ Genera claves RSA en memoria(volátiles)(HAY QUE CAMBIARLO PARA QUE LAS CLAVES SE GUARDEN EN EL DISCO) """
+    def __init__(self, key_password: str):
+        """ Genera claves RSA en memoria(volátiles)(HAY QUE CAMBIARLO PARA QUE LAS CLAVES SE GUARDEN EN EL DISCO)
+        key_password = passphrase usada en el openssl"""
+
+        print("[AuthServer] Verificando certificado propio contra la PKI.")
+        if not verify_with_openssl(AUTH_CERT_PATH):
+            raise RuntimeError("Certificado NO válido según la PKI.")
+
+        print("[AuthServer] Cargando clave privada RSA desde disco.")
+        self._priv_key = load_private_key(AUTH_KEY_PATH, password=key_password)
+        # ahora, la clave pública desde certificado
+        self.public_key = load_public_key(AUTH_CERT_PATH)
+
+        # exportar la pública para ir a ballotbox
+        self.public_key_pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+        print(f"[AuthServer] Clave RSA cargada.")
+
+
         #pa los logs pendiente
         print("[AuthServer] Generando clave RSA")
         self._priv_key = rsa.generate_private_key(
