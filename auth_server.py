@@ -118,7 +118,7 @@ def login_user(email,password):
 class AuthServer:
     """ Servidor de utenticación que emite tokens firmados con RSA """
     def __init__(self, key_password: str):
-        """ Genera claves RSA en memoria(volátiles)(HAY QUE CAMBIARLO PARA QUE LAS CLAVES SE GUARDEN EN EL DISCO)
+        """ Genera claves RSA 
         key_password = passphrase usada en el openssl"""
 
         print("[AuthServer] Verificando certificado propio contra la PKI.")
@@ -215,11 +215,23 @@ class AuthServer:
         token_hash= hashlib.sha256(token_b64.encode()).hexdigest()
         
 
-        con = sqlite3.connect(DB_PATH)
-        cur = con.cursor()
+        # Calcular chain_hash (Blockchain de tokens)
+        # Obtenemos el último hash de la cadena
+        last_row = cur.execute("SELECT chain_hash FROM tokens ORDER BY rowid DESC LIMIT 1").fetchone()
+        
+        if last_row:
+            prev_hash = last_row[0]
+        else:
+            prev_hash = "0" * 64 # Genesis hash
+
+        # Nuevo hash = SHA256(prev_hash + token_hash + election_id + used + dni)
+        # used es 0 al principio
+        chain_input = f"{prev_hash}{token_hash}{election_id}0{dni_hash}".encode()
+        chain_hash = hashlib.sha256(chain_input).hexdigest()
+
         cur.execute("""
             INSERT  INTO tokens(token_hash, election_id, 
-            used,dni) VALUES (?, ?, ?,?)""", (token_hash, election_id,0,  dni_hash))
+            used,dni, chain_hash) VALUES (?, ?, ?,?,?)""", (token_hash, election_id,0,  dni_hash, chain_hash))
         con.commit()
         con.close()
         print(f"[AuthServer] Token firmado emitido para ...{dni_claro[-4:]}")

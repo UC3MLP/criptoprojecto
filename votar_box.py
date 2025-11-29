@@ -198,6 +198,10 @@ class BallotBox:
                 
 
                 cur.execute("UPDATE tokens SET used=1 WHERE token_hash=?", (token_hash_hex,))
+                
+                # Recalcular cadena de hashes desde este punto
+                self.recalculate_hashes(cur, token_hash_hex)
+
                 cur.execute("INSERT INTO tallies(election_id,choice_id, signature) VALUES(?,?,?)",
                             (vote["election_id"], vote["choice"], signature))
                 con.commit()
@@ -207,53 +211,125 @@ class BallotBox:
             print(f"[BallotBox] Error general: {e}")
             return False
 
+    def recalculate_hashes(self, cur, start_token_hash):
+        """
+        Recalcula los hashes de la cadena desde el token modificado hasta el final.
+        Esto es necesario porque al cambiar 'used' de 0 a 1, el hash de esa fila cambia,
+        y por tanto todos los siguientes también deben cambiar.
+        """
+        print(f"[BallotBox] Recalculando cadena de hashes desde {start_token_hash[:8]}...")
+        
+        # 1. Obtener el rowid del token modificado
+        row = cur.execute("SELECT rowid FROM tokens WHERE token_hash=?", (start_token_hash,)).fetchone()
+        if not row:
+            return
+        start_rowid = row[0]
+
+        # 2. Obtener todos los tokens desde ese rowid en adelante (ordenados)
+        tokens = cur.execute("""
+            SELECT rowid, token_hash, election_id, used, dni 
+            FROM tokens WHERE rowid >= ? ORDER BY rowid ASC
+        """, (start_rowid,)).fetchall()
+
+        # 3. Obtener el hash previo (del token justo antes del modificado)
+        prev_row = cur.execute("SELECT chain_hash FROM tokens WHERE rowid < ? ORDER BY rowid DESC LIMIT 1", (start_rowid,)).fetchone()
+        if prev_row:
+            prev_hash = prev_row[0]
+        else:
+            prev_hash = "0" * 64 # Genesis
+
+        # 4. Iterar y actualizar
+        for t in tokens:
+            t_rowid, t_hash, t_election, t_used, t_dni = t
+            
+            # Calcular nuevo hash
+            chain_input = f"{prev_hash}{t_hash}{t_election}{t_used}{t_dni}".encode()
+            new_chain_hash = hashlib.sha256(chain_input).hexdigest()
+
+            # Actualizar en BD
+            cur.execute("UPDATE tokens SET chain_hash=? WHERE rowid=?", (new_chain_hash, t_rowid))
+            
+            # El actual se convierte en el previo para el siguiente
+            prev_hash = new_chain_hash
+        
+        print(f"[BallotBox] Cadena recalculada ({len(tokens)} tokens actualizados).")
+
 
     #Funcion de auditoria que revisa si los votos han sido modificados
 
     def audit_integrity(self)->bool:
         """ 
-         Verifica la integridad de todos los votos en la tabla 'tallies' """
+         Verifica la integridad de todos los votos en la tabla 'tallies' 
+         Y TAMBIÉN la integridad de la cadena de tokens (Blockchain)
+        """
         
         try:
             with sqlite3.connect(DB_PATH) as con:
                 cur = con.cursor()
+                
+                # --- VERIFICACIÓN 1: Integridad de Votos (Firmas) ---
                 rows = cur. execute(
                     "SELECT election_id, choice_id, signature FROM tallies ORDER BY rowid"
                 ).fetchall()
 
                 if not rows:
                     print("Auditoría: No hay votos registrados")
-                    return True
-                for row in rows:
-                    election_id, choice_id, signature = row
+                else:
+                    for row in rows:
+                        election_id, choice_id, signature = row
 
-                    if not signature:
-                        print(f"Error de auditoría: voto para {election_id} no tiene firma")
-                        return False # Voto sin firma
+                        if not signature:
+                            print(f"Error de auditoría: voto para {election_id} no tiene firma")
+                            return False # Voto sin firma
+                        
+                        #reconstruir los datos exactamente como se firmaron
+                        vote_data = f"{election_id}|{choice_id}".encode('utf-8')
+
+                        try: 
+                            self.public_key.verify(
+                                signature,
+                                vote_data,
+                                padding.PSS( #mismo padding que al firmar
+                                mgf=padding.MGF1(hashes.SHA256()),
+                                salt_length = padding.PSS.MAX_LENGTH
+                                ),
+                                hashes.SHA256()
+                            )
+                        except InvalidSignature :
+                            print(f"Corrupción detectada, la firma del voto{election_id}='{choice_id}' Es inválida")
+                            return False
+                        
+                        except Exception as e:
+                            print( f"Error insesperado durante la verificación de la firma: {e}")
+                            return False 
+                
+                print(f"Integridad de votos (firmas) verificada.")
+
+
+                # --- VERIFICACIÓN 2: Integridad de Tokens (Hash Chain) ---
+                print("[Auditoría] Verificando cadena de bloques de tokens...")
+                tokens = cur.execute("SELECT token_hash, election_id, used, dni, chain_hash FROM tokens ORDER BY rowid ASC").fetchall()
+                
+                prev_hash = "0" * 64 # Genesis
+                
+                for i, t in enumerate(tokens):
+                    t_hash, t_election, t_used, t_dni, stored_chain_hash = t
                     
-                    #reconstruir los datos exactamente como se firmaron
-                    vote_data = f"{election_id}|{choice_id}".encode('utf-8')
-
-                    try: 
-                        self.public_key.verify(
-                            signature,
-                            vote_data,
-                            padding.PSS( #mismo padding que al firmar
-                            mgf=padding.MGF1(hashes.SHA256()),
-                            salt_length = padding.PSS.MAX_LENGTH
-                            ),
-                            hashes.SHA256()
-                        )
-                    except InvalidSignature :
-                        print(f"Corrupción detectada, la firma del voto{election_id}='{choice_id}' Es inválida")
+                    # Recalcular hash esperado
+                    chain_input = f"{prev_hash}{t_hash}{t_election}{t_used}{t_dni}".encode()
+                    calculated_hash = hashlib.sha256(chain_input).hexdigest()
+                    
+                    if calculated_hash != stored_chain_hash:
+                        print(f"[Auditoría] ¡CORRUPCIÓN DETECTADA en Token #{i}!")
+                        print(f"   Esperado: {calculated_hash}")
+                        print(f"   Encontrado: {stored_chain_hash}")
                         return False
                     
-                    except Exception as e:
-                        print( f"Error insesperado durante la verificación de la firma: {e}")
-                        return False 
-                    
-                print(f"integridad de votos verificados")
+                    prev_hash = calculated_hash # Avanzar
+
+                print(f"[Auditoría] Cadena de tokens verificada correctamente ({len(tokens)} bloques).")
                 return True
+
         except sqlite3.Error as e:
             if "not such column : signature" in str(e):
                 print("Error Auditoría: La tabla 'tallies' no tiene la columna 'signature")

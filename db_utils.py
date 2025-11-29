@@ -10,7 +10,7 @@ def db_init():
                 "INTEGER)")
     # for saving users
     cur.execute("CREATE TABLE IF NOT EXISTS tokens(token_hash TEXT PRIMARY "
-                "KEY, election_id TEXT, used INTEGER, dni TEXT, UNIQUE(dni, "
+                "KEY, election_id TEXT, used INTEGER, dni TEXT, chain_hash TEXT, UNIQUE(dni, "
                 "election_id))")
     # for saving tokens from auth server
     cur.execute("CREATE TABLE IF NOT EXISTS tallies(id INTEGER PRIMARY KEY AUTOINCREMENT, election_id TEXT NOT NULL, "
