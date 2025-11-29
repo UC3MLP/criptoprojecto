@@ -50,12 +50,6 @@ class BallotBox:
 
         print("[BallotBox] Iniciando Urna")
         self.auth_public_key = auth_public_key
-        # Exportamos la pública para el cliente
-        self.pub_pem = self._priv.public_key().public_bytes(
-            serialization.Encoding.PEM,
-            serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        self.public_key = self._priv.public_key()
 
 
     def verify_and_record(self, packet_json: str) -> bool:

@@ -137,15 +137,6 @@ class AuthServer:
 
         print(f"[AuthServer] Clave RSA cargada.")
 
-
-        self.public_key = self._priv_key.public_key()
-
-        self.public_key_pem = self.public_key.public_bytes(
-            encoding = serialization.Encoding.PEM,
-            format= serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        print("[AuthServer] Claves RSA generadas")
-
     def issue_token(self, dni_claro, election_id):
         """generar un token (un solo uso) que permite a usuario votar sin
         revelar su identidad"""
