@@ -1,12 +1,14 @@
+import os
 import subprocess
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 
-CA_CHAIN_PATH = "keys/ca_chain.pem"
-AUTH_CERT_PATH = "keys/auth.crt.pem"
-AUTH_KEY_PATH = "keys/auth.key.pem"
-BALLOT_CERT_PATH = "keys/ballot.crt.pem"
-BALLOT_KEY_PATH = "keys/ballot.key.pem"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CA_CHAIN_PATH = os.path.join(BASE_DIR, "keys", "ca_chain.pem")
+AUTH_CERT_PATH = os.path.join(BASE_DIR, "keys", "auth.crt.pem")
+AUTH_KEY_PATH = os.path.join(BASE_DIR, "keys", "auth.key.pem")
+BALLOT_CERT_PATH = os.path.join(BASE_DIR, "keys", "ballot.crt.pem")
+BALLOT_KEY_PATH = os.path.join(BASE_DIR, "keys", "ballot.key.pem")
 
 
 def verify_with_openssl(cert_path: str) -> bool:

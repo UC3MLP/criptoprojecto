@@ -10,11 +10,14 @@ from votar_box import BallotBox
 from crypto_client import ClientCrypto
 
 #Inicializacion y configuracion de logging para el archivo de logs
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_PATH = os.path.join(BASE_DIR, "registro_votacion.log")
+
 logging.basicConfig(
     level= logging.INFO,
     format = "%(asctime)s [%levelname)s]%(message)s",
     handlers=[
-        logging.FileHandler("registro_votacion.log"),
+        logging.FileHandler(LOG_PATH),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -171,7 +174,7 @@ class App(ctk.CTk):
                 self.login_email_entry.delete(0,tk.END)
                 self.login_pwd_entry.delete(0,tk.END)
                 #tras esto se llama a la siguiente ventana donde se realiza la votación
-                self.show_voting_interface(dni_user)
+                self.show_law_selection(dni_user)
         except ValueError as e:
             self.status_label.configure(text =str(e),text_color='red')
 
@@ -185,52 +188,89 @@ class App(ctk.CTk):
         
   #  Interfaz de votación
 
-    def show_voting_interface(self,dni):
-        """plataforma de votación"""
-        self.withdraw() #ocultamos la ventana principal
+    def show_law_selection(self, dni):
+        """Muestra la pantalla de selección de leyes"""
+        self.withdraw() # Ocultar ventana principal
 
         try:
-            #Abre la nueva ventana 
-            Voting_window = VotingInterface(self,dni,self.auth_server,self.ballot_box, self.bb_pub_pem)
-
-            self.wait_window(Voting_window) #Bloquea la ventana hasta que termine el voto
+            selection_window = LawSelectionInterface(self, dni, self.auth_server, self.ballot_box, self.bb_pub_pem)
+            self.wait_window(selection_window) # Esperar a que se cierre
         except Exception as e:
-            print(f"Error en ventana de votación {e}")
-            messagebox.showerror("Error", f"Error al abrir ventana de votación {e}")
-
+            print(f"Error en ventana de selección: {e}")
+            messagebox.showerror("Error", f"Error al abrir selección de leyes: {e}")
         finally:
-            #despues de votar te lleva a login de nuevo
+            self.deiconify() # Mostrar login al volver
+
+
+class LawSelectionInterface(ctk.CTkToplevel):
+    """Interfaz para seleccionar la ley a votar"""
+    def __init__(self, master, dni, auth_server, ballot_box, bb_pub_pem):
+        super().__init__(master)
+        self.title("Selección de Ley")
+        self.geometry("400x400")
+        
+        self.dni = dni
+        self.auth_server = auth_server
+        self.ballot_box = ballot_box
+        self.bb_pub_pem = bb_pub_pem
+        
+        ctk.CTkLabel(self, text="Seleccione una ley para votar:", font=("Arial", 16, "bold")).pack(pady=20)
+        
+        laws = {
+            "Ley 1": "Ley 1",
+            "Ley 2": "Propuesta de Ley 2",
+            "Ley 3": "Propuesta de Ley 3"
+        }
+        
+        for law_id, law_name in laws.items():
+            ctk.CTkButton(self, text=law_name, 
+                          command=lambda l_id=law_id: self.open_voting(l_id),
+                          width=200, height=40).pack(pady=10)
+            
+        # Botón de Cerrar Sesión
+        ctk.CTkButton(self, text="Cerrar Sesión", command=self.destroy,
+                      fg_color="red", hover_color="darkred", width=200, height=40).pack(pady=30)
+
+    def open_voting(self, law_id):
+        """Abre la interfaz de votación para la ley seleccionada"""
+        self.withdraw() # Ocultar selección
+        try:
+            voting_window = VotingInterface(self, self.dni, self.auth_server, self.ballot_box, self.bb_pub_pem, law_id)
+            self.wait_window(voting_window) # Esperar a que termine de votar
+            
+            if hasattr(voting_window, 'logout_requested') and voting_window.logout_requested:
+                self.destroy() # Si pidió logout, cerramos también esta ventana
+            else:
+                self.deiconify() # Si solo votó, volvemos a mostrar la selección
+        except Exception as e:
+            print(f"Error abriendo votación: {e}")
             self.deiconify()
 
 
 class VotingInterface(ctk.CTkToplevel):
     """interfaz para la votación"""
-    def __init__(self, master,dni,auth_server, ballot_box, bb_pub_pem):
+    def __init__(self, master, dni, auth_server, ballot_box, bb_pub_pem, election_id):
         #tk.Toplevel crea una ventana secundaria
         super().__init__(master)
-        self.title("Plataforma de votación")
-        self.geometry("550x400")
+        self.title(f"Votación - {election_id}")
+        self.geometry("550x450")
 
         #Datos y módulos clave
         self.dni = dni
         self.auth_server = auth_server
-        self.election_id = "Ley 1"
+        self.election_id = election_id
         self.ballot_box = ballot_box
         self.bb_pub_pem = bb_pub_pem
+        self.logout_requested = False
         
         #Token de elegibilidad
         self.eligibility_token = None
 
         #título de la ley
-        self.law_title_label= ctk.CTkLabel(self,text =f"Ley a votar:{self.election_id}",
+        self.law_title_label= ctk.CTkLabel(self,text =f"Ley a votar: {self.election_id}",
                   font=('Arial',16,'bold'))
         self.law_title_label.pack(pady=10)
         
-
-        #Boton para cambiar de ley
-        ctk.CTkButton(self, text = 'Cambiar ley',command=self.show_election_selector, width =150,
-                      height=30).pack(pady=10)
-
         #Etiqueta de estado
         self.status_label = ctk.CTkLabel(self,text="Seleccione su voto:",
                                          font=("Arial",12),text_color="white")
@@ -252,43 +292,14 @@ class VotingInterface(ctk.CTkToplevel):
         ctk.CTkButton(button_frame, text='Abstención', command= lambda: self.handle_vote("ABSTENCIÓN"), width=150, height=40,fg_color="gray",
                    hover_color="darkgray",font=("Arial",12,"bold")).pack(side=tk.LEFT, padx= 10)
 
-       
+        # Botón de Cerrar Sesión
+        ctk.CTkButton(self, text="Cerrar Sesión", command=self.logout,
+                      fg_color="red", hover_color="darkred", width=150, height=30).pack(pady=20)
 
-    def show_election_selector(self):
-        """Muestra una ventana para elegir una nueva ley y reiniciar la
-        votación"""
-        laws= {"Ley 1": " Ley 1",
-               "Ley 2":" Propuesta de Ley 2",
-               "Ley 3": " Propuesta de Ley 3"
-               }
-        
-        #configuración de la ventana de selección
-        selector_window = ctk.CTkToplevel(self)
-        selector_window.title("Seleccionar Ley")
-        selector_window.geometry("350x300")
-        selector_window.transient(self)#hace que la ventana este arriba siempre
+    def logout(self):
+        self.logout_requested = True
+        self.destroy()
 
-        ctk.CTkLabel(selector_window, text = "Elige la Ley para la que quieres votar",
-                     font=("Arial",13,"bold")).pack(padx=20,pady=20)
-
-            #Gestor de la selección
-        def select_law(law_id, law_name):
-            #Cierra la ventana de selección anterior
-            selector_window.destroy()
-            self.election_id = law_id
-            self.law_title_label.configure(text= f"Ley a votar: {self.election_id}")
-            self.status_label.configure(text = f"Cambio a :{law_name}",text_color= "white")
-
-            #Limpia el token anterior y reinicia el proceso de elegibilidad
-            self.eligibility_token = None 
-            #Botones para cada ley
-        for law_name, law_id in laws.items():
-            ctk.CTkButton(selector_window,text = law_name,
-                    command=lambda l_id=law_id,
-                    l_name=law_name:select_law(l_id,l_name),
-                    width=250, height=35).pack(pady =10, padx=20)
-
-    
     def get_eligibility_token(self):
         """Llama a AuthServer para obtener el token"""
 
@@ -323,8 +334,12 @@ class VotingInterface(ctk.CTkToplevel):
 
          #iniciar el proceso de obtener el token y verificar
         if not self.get_eligibility_token():
-            self.destroy()
-            return
+            # Si falla al obtener token, no cerramos ventana, dejamos que el usuario vea el error o intente otra cosa (o salga)
+            # Pero el código original hacía destroy(). Vamos a mantenerlo si es un error fatal, pero el token puede fallar por ya votado.
+            # Si ya votó, quizás quiera salir.
+            # Vamos a dejarlo como estaba: destroy() si falla token?
+            # El original hacía destroy().
+            return # No destruimos, dejamos que el usuario decida salir o cambiar ley (ahora salir)
         try: 
             vote_package_json = self.crypto_client.make_packet(
                 self.election_id,
@@ -348,7 +363,7 @@ class VotingInterface(ctk.CTkToplevel):
             success = False
         
         #Finalizar
-        self.destroy() #Cerrar ventana de votación
+        self.destroy() #Cerrar ventana de votación y volver a selección
 
 
 if __name__ == "__main__":
@@ -358,10 +373,17 @@ if __name__ == "__main__":
         AUTH_KEY_PASSWORD = os.environ["AUTH_KEY_PASSWORD"]
         BALLOT_KEY_PASSWORD = os.environ["BALLOT_KEY_PASSWORD"]
         # hay que poner cuando se quiere ejecutar:
-        # en powershell
+        # en macOS/Linux (Terminal):
+        # export AUTH_KEY_PASSWORD="auth"
+        # export BALLOT_KEY_PASSWORD="ballot"
+        # python main.py
+        #
+        # en Windows (PowerShell):
         # $env:AUTH_KEY_PASSWORD="auth"
         # $env:BALLOT_KEY_PASSWORD="ballot"
-        # en cmd
+        # python main.py
+        #
+        # en Windows (CMD):
         # set AUTH_KEY_PASSWORD=auth
         # set BALLOT_KEY_PASSWORD=ballot
         # python main.py

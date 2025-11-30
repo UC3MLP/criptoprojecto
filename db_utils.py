@@ -1,9 +1,11 @@
 import sqlite3
+import os
 
-DB_PATH = "votes_app.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "votes_app.db")
 
 def db_init():
-    con = sqlite3.connect("votes_app.db") # creating database
+    con = sqlite3.connect(DB_PATH) # creating database
     cur = con.cursor()                    # creating necessary cursor
     cur.execute("CREATE TABLE IF NOT EXISTS users(email TEXT UNIQUE, "
                 "dni BLOB, salt BLOB, pwd_hash BLOB, iterations "
