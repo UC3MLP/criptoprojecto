@@ -8,6 +8,8 @@ La interfaz gráfica ha sido desarrollada con **CustomTkinter**.
 Para ejecutar esta aplicación, necesitarás tener instalado:
 1. **Python (cualquier versión superior o igual a la 3.8)**
 2. Las dos librerías listadas a continuación.
+3. OpenSSL. MUY IMPORTANTE hacer que se priorice nuestro openssl.cnf antes del 
+OpenSSL que tengas instalado, y versión 3.0.16 de OpenSSL (OpenSSL 3.0.16 11 Feb 2025).
 
 ---
 
@@ -32,7 +34,7 @@ instrucciones para instalarlo dependiendo de tu sistema operativo.
 Para verificar la instalación puedes usar este comando en la terminal: 
 
 ```bash
-pip python3 --version
+python3 --version
 ```
 
 
@@ -74,10 +76,10 @@ python3 -m pip install  cryptography
 
 ### CONTRASEÑAS:
 
-Para Root CA (root) (4096 bits - estándar): root
-Para Sub CA (subroot) (4096 bits): subroot
-Para AuthServer (3072 bits): auth
-Para ballotBox (3072 bits): ballot
+1. Para Root CA (root) (4096 bits - estándar): root
+2. Para Sub CA (subroot) (4096 bits): subroot
+3. Para AuthServer (3072 bits): auth
+4. Para ballotBox (3072 bits): ballot
 
 ## Anexo 1: Claves estándar
 
