@@ -223,7 +223,7 @@ class LawSelectionInterface(ctk.CTkToplevel):
         self.current_date = date(2025, 1, 5)
         self.current_week = 0
         
-        ctk.CTkLabel(self, text="Seleccione una ley para votar:", font=("Arial", 16, "bold")).pack(pady=20)
+        ctk.CTkLabel(self, text="Leyes", font=("Arial", 16, "bold")).pack(pady=20)
 
         try:
             with open("laws.json", "r", encoding="utf-8") as f:
