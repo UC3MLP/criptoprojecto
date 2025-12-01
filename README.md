@@ -71,6 +71,7 @@ Si ese comando no funciona, prueba usando este otro:
 python3 -m pip install  cryptography
 ```
 
+
 ### CONTRASEÑAS:
 
 para root (4096 bits pq es el estandar recomendado): root
@@ -78,23 +79,54 @@ para subroot (4096 bits): subroot
 para auth: auth
 para ballotbox: ballot
 
+## Anexo 1: Claves estándar
 
-### Cambios :
+Al realizar nuestro proyecto, hemos llegado a un consenso sobre las claves que se utilizarían tanto para la generación de Root CA, Sub CA, AuthServer y BallotBox como para la clave de cifrado del DNI. En este pequeño anexo se detallarán.
 
-Clave DNI Hardcodeada: DNI_ENCRYPTION_KEY está escrita en el código (1234...). Debería cargarse de variable de entorno o fichero seguro.
+### Clave del DNI
+Nuestro programa requerirá una clave, preferiblemente aleatoria, en base64 y AES. Recomendamos el uso de OpenSSL en la terminal, aplicando este comando:
 
-Hacer que nadie se pueda meter a cambiar el used a 0 o a 1 generando el hash del ultimo voto con el anterior
+```bash
+openssl rand -base64 32
+```
 
-### Requisitos previos
-Es necesario tener instalado OpenSSL en el sistema operativo.
-Para comprobarlo:
-````
+Después de ejecutar esto, obtendremos una clave adecuada para el DNI. Se añadirá a la terminal antes de ejecutar el archivo.
+
+**Windows (CMD):**
+```cmd
+set DNI_KEY={key}
+python main.py
+```
+
+**Linux/Mac (Bash):**
+```bash
+DNI_KEY={key} python main.py
+```
+
+Finalmente, el código se ejecutará sin problemas. Si, por alguna razón, se nos olvida poner el DNI, hay una prompt que te preguntará por la clave del DNI para ejecutar el programa. Si, aún así, no se da una clave, ya no se ejecutará.
+
+**Clave de ejemplo:**
+Igualmente, proporcionamos una clave de ejemplo para ejecutar el código sin tener que crear ninguna clave:
+`KeEn6FVMn26JTAPDBvR/mFm5kufFmnL2r3mZUsR5BIg=`
+
+## Anexo 2: Requisitos Previos (OpenSSL)
+
+Es necesario tener instalado **OpenSSL** en el sistema operativo.
+
+### Verificación
+Para comprobar si está instalado, ejecuta:
+
+```bash
 openssl version
-````
-Si el comando funciona, el entorno está listo.
-En Windows puede ser necesario definir la variable de entorno:
-````
-setx OPENSSL_CONF "C:\Program Files\OpenSSL-Win64\ssl\openssl.cnf"
-````
+```
 
-Reiniciar la terminal después.
+Si el comando funciona, el entorno está listo.
+
+### Configuración en Windows
+En Windows, puede ser necesario definir la variable de entorno:
+
+```cmd
+setx OPENSSL_CONF "C:\Program Files\OpenSSL-Win64\ssl\openssl.cnf"
+```
+
+> **Nota:** Reinicia la terminal después de configurar la variable de entorno.
