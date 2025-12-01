@@ -261,7 +261,7 @@ class BallotBox:
         """ 
          Verifica la integridad de todos los votos en la tabla 'tallies' 
          Y TAMBIÉN la integridad de la cadena de tokens (Blockchain)
-         asi no e puede cambiar ningun voto y los tokens estan con ujn hash en cadena que no se peude modificar
+         asi no se puede cambiar ningún voto y los tokens están con un hash en cadena que no se puede modificar
         """
         
         try:

@@ -84,3 +84,17 @@ para ballotbox: ballot
 Clave DNI Hardcodeada: DNI_ENCRYPTION_KEY está escrita en el código (1234...). Debería cargarse de variable de entorno o fichero seguro.
 
 Hacer que nadie se pueda meter a cambiar el used a 0 o a 1 generando el hash del ultimo voto con el anterior
+
+### Requisitos previos
+Es necesario tener instalado OpenSSL en el sistema operativo.
+Para comprobarlo:
+````
+openssl version
+````
+Si el comando funciona, el entorno está listo.
+En Windows puede ser necesario definir la variable de entorno:
+````
+setx OPENSSL_CONF "C:\Program Files\OpenSSL-Win64\ssl\openssl.cnf"
+````
+
+Reiniciar la terminal después.

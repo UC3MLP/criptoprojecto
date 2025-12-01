@@ -2,6 +2,8 @@ import os
 import sys
 import json
 import logging
+import getpass
+import subprocess
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox
@@ -9,6 +11,7 @@ from db_utils import db_init
 from auth_server import AuthServer, register_user, login_user
 from votar_box import BallotBox
 from crypto_client import ClientCrypto
+from pki import generating_pki
 
 #Inicializacion y configuracion de logging para el archivo de logs
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -426,9 +429,54 @@ class VotingInterface(ctk.CTkToplevel):
 if __name__ == "__main__":
     db_init()
 
+    print("¡Inicialización de la PKI!\n")
+    print("Si es la primera vez, se generarán las claves/certificados en "
+          "la carpeta 'keys/'.")
+    print("Las claves privadas que hemos decidido usar están en el README.\n")
+
+    # se piden las contraseñas
     try:
-        AUTH_KEY_PASSWORD = os.environ["AUTH_KEY_PASSWORD"]
-        BALLOT_KEY_PASSWORD = os.environ["BALLOT_KEY_PASSWORD"]
+        root_password = getpass.getpass("Passphrase de root: ")
+        sub_password = getpass.getpass("Passphrase de subroot: ")
+        auth_password = getpass.getpass(
+            "Passphrase de la clave privada AuthServer: ")
+        ballot_password = getpass.getpass(
+            "Passphrase de la clave privada BallotBox: ")
+    except KeyboardInterrupt:
+        print("\nCancelado por el usuario.")
+        sys.exit(1)
+
+    # pki se genera si es que no existe
+    try:
+        generating_pki(root_password, sub_password, auth_password,
+                       ballot_password)
+    except subprocess.CalledProcessError as e:
+        print("\nERROR generando la PKI con OpenSSL.")
+        print("Comando falló con código:", e.returncode)
+        sys.exit(1)
+
+    # creamos authserver, ballotbox
+    try:
+        AS = AuthServer(key_password=auth_password)
+    except Exception as e:
+        print(f"\nERROR inicializando AuthServer: {e}")
+        sys.exit(1)
+
+    try:
+        BB = BallotBox(
+            auth_public_key=AS.public_key,
+            key_password=ballot_password,
+        )
+    except Exception as e:
+        print(f"\nERROR inicializando BallotBox: {e}")
+        sys.exit(1)
+
+    app = App(AS, BB, BB.pub_pem)
+    app.mainloop()
+
+    # try:
+        # AUTH_KEY_PASSWORD = os.environ["AUTH_KEY_PASSWORD"]
+        # BALLOT_KEY_PASSWORD = os.environ["BALLOT_KEY_PASSWORD"]
         # hay que poner cuando se quiere ejecutar:
         # en macOS/Linux (Terminal):
         # export AUTH_KEY_PASSWORD="auth"
@@ -444,14 +492,14 @@ if __name__ == "__main__":
         # set AUTH_KEY_PASSWORD=auth
         # set BALLOT_KEY_PASSWORD=ballot
         # python main.py
-    except KeyError as e:
-        missing = e.args[0]
-        print(f"ERROR: falta la variable de entorno {missing}."
-              f"Debes hacer 'export ...' antes de ejecutar")
-        sys.exit(1)
+    # except KeyError as e:
+        # missing = e.args[0]
+        # print(f"ERROR: falta la variable de entorno {missing}."
+              # f"Debes hacer 'export/set ...' antes de ejecutar")
+        # sys.exit(1)
 
-    AS= AuthServer(key_password=AUTH_KEY_PASSWORD)
-    BB = BallotBox(auth_public_key=AS.public_key,
-                   key_password=BALLOT_KEY_PASSWORD)
-    app = App(AS, BB, BB.pub_pem)
-    app.mainloop()
+    # AS= AuthServer(key_password=AUTH_KEY_PASSWORD)
+    # BB = BallotBox(auth_public_key=AS.public_key,
+                   # key_password=BALLOT_KEY_PASSWORD)
+    # app = App(AS, BB, BB.pub_pem)
+    # app.mainloop()
