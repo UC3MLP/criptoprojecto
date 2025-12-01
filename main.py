@@ -436,12 +436,12 @@ if __name__ == "__main__":
 
     # se piden las contraseñas
     try:
-        root_password = getpass.getpass("Passphrase de root: ")
-        sub_password = getpass.getpass("Passphrase de subroot: ")
+        root_password = getpass.getpass("Password para root: ")
+        sub_password = getpass.getpass("Password para subroot: ")
         auth_password = getpass.getpass(
-            "Passphrase de la clave privada AuthServer: ")
+            "Password para AuthServer: ")
         ballot_password = getpass.getpass(
-            "Passphrase de la clave privada BallotBox: ")
+            "Password para BallotBox: ")
     except KeyboardInterrupt:
         print("\nCancelado por el usuario.")
         sys.exit(1)
