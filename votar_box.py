@@ -261,13 +261,14 @@ class BallotBox:
         """ 
          Verifica la integridad de todos los votos en la tabla 'tallies' 
          Y TAMBIÉN la integridad de la cadena de tokens (Blockchain)
+         asi no e puede cambiar ningun voto y los tokens estan con ujn hash en cadena que no se peude modificar
         """
         
         try:
             with sqlite3.connect(DB_PATH) as con:
                 cur = con.cursor()
                 
-                # --- VERIFICACIÓN 1: Integridad de Votos (Firmas) ---
+                # Integridad de Votos (Firmas)
                 rows = cur. execute(
                     "SELECT election_id, choice_id, signature FROM tallies ORDER BY rowid"
                 ).fetchall()
@@ -306,7 +307,7 @@ class BallotBox:
                 print(f"Integridad de votos (firmas) verificada.")
 
 
-                # --- VERIFICACIÓN 2: Integridad de Tokens (Hash Chain) ---
+                #  Integridad de Tokens (Hash Chain) 
                 print("[Auditoría] Verificando cadena de bloques de tokens...")
                 tokens = cur.execute("SELECT token_hash, election_id, used, dni, chain_hash FROM tokens ORDER BY rowid ASC").fetchall()
                 
@@ -335,7 +336,7 @@ class BallotBox:
                 print("Error Auditoría: La tabla 'tallies' no tiene la columna 'signature")
                 
             else:
-                print(f"Errr de base de datos durnte la auditoría:{e}")
+                print(f"Error de base de datos durnte la auditoría:{e}")
             return False
         except Exception as e:
             print(f"Error general en la auditoría: {e}")
@@ -344,3 +345,29 @@ class BallotBox:
                     
         
 
+
+    def get_vote_counts(self, election_id: str) -> dict:
+        """
+       Esta funcion es para el conteo de votos, solo los cuenta y los printea, no hace nada mas
+        """
+        counts = {"SI": 0, "NO": 0, "ABSTENCIÓN": 0}
+        try:
+            with sqlite3.connect(DB_PATH) as con:
+                cur = con.cursor()
+                # Contar votos agrupados por choice_id
+                rows = cur.execute(
+                    "SELECT choice_id, COUNT(*) FROM tallies WHERE election_id=? GROUP BY choice_id",
+                    (election_id,)
+                ).fetchall()
+                
+                for choice, count in rows:
+                    if choice in counts:
+                        counts[choice] = count
+                    else:
+                        # Por si acaso hay algún voto con choice distinto (no debería)
+                        counts[choice] = count
+                        
+        except Exception as e:
+            print(f"[BallotBox] Error obteniendo conteo de votos: {e}")
+            
+        return counts

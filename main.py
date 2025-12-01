@@ -223,13 +223,33 @@ class LawSelectionInterface(ctk.CTkToplevel):
         }
         
         for law_id, law_name in laws.items():
-            ctk.CTkButton(self, text=law_name, 
-                          command=lambda l_id=law_id: self.open_voting(l_id),
-                          width=200, height=40).pack(pady=10)
+            # Frame para cada ley (Botón votar + Botón resultados)
+            law_frame = ctk.CTkFrame(self)
+            law_frame.pack(pady=5, padx=20, fill="x")
             
+            ctk.CTkButton(law_frame, text=law_name, 
+                          command=lambda l_id=law_id: self.open_voting(l_id),
+                          width=200, height=40).pack(side="left", padx=10)
+            
+            ctk.CTkButton(law_frame, text="Ver Resultados",
+                          command=lambda l_id=law_id: self.show_results(l_id),
+                          width=120, height=40, fg_color="orange", hover_color="darkorange").pack(side="right", padx=10)
+
         # Botón de Cerrar Sesión
         ctk.CTkButton(self, text="Cerrar Sesión", command=self.destroy,
                       fg_color="red", hover_color="darkred", width=200, height=40).pack(pady=30)
+
+    def show_results(self, law_id):
+        """Muestra los resultados de la votación para una ley"""
+        try:
+            counts = self.ballot_box.get_vote_counts(law_id)
+            msg = f"Resultados para {law_id}:\n\n" \
+                  f"SI: {counts.get('SI', 0)}\n" \
+                  f"NO: {counts.get('NO', 0)}\n" \
+                  f"ABSTENCIÓN: {counts.get('ABSTENCIÓN', 0)}"
+            messagebox.showinfo("Resultados", msg)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudieron obtener los resultados: {e}")
 
     def open_voting(self, law_id):
         """Abre la interfaz de votación para la ley seleccionada"""
@@ -294,7 +314,15 @@ class VotingInterface(ctk.CTkToplevel):
 
         # Botón de Cerrar Sesión
         ctk.CTkButton(self, text="Cerrar Sesión", command=self.logout,
-                      fg_color="red", hover_color="darkred", width=150, height=30).pack(pady=20)
+                      fg_color="red", hover_color="darkred", width=150, height=30).pack(side=tk.LEFT, padx=20, pady=20)
+
+        # Botón de Volver
+        ctk.CTkButton(self, text="Volver", command=self.go_back,
+                      fg_color="gray", hover_color="darkgray", width=150, height=30).pack(side=tk.RIGHT, padx=20, pady=20)
+
+    def go_back(self):
+        """Cierra la ventana actual y vuelve a la selección"""
+        self.destroy()
 
     def logout(self):
         self.logout_requested = True
