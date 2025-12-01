@@ -1,0 +1,52 @@
+[
+    {
+        "id": "LEY-001",
+        "title": "Ley de Digitalización Educativa",
+        "description": "Garantiza el acceso a dispositivos digitales y conexión a internet de alta velocidad en todos los centros educativos públicos, así como la formación continua del profesorado en competencias digitales."
+    },
+    {
+        "id": "LEY-002",
+        "title": "Ley de Energías Renovables 2030",
+        "description": "Establece el objetivo de alcanzar el 80% de producción eléctrica mediante fuentes renovables para el año 2030, incentivando el autoconsumo y las comunidades energéticas locales."
+    },
+    {
+        "id": "LEY-003",
+        "title": "Ley de Protección del Teletrabajo",
+        "description": "Regula el derecho a la desconexión digital, la compensación de gastos derivados del trabajo a distancia y garantiza la igualdad de oportunidades entre trabajadores presenciales y remotos."
+    },
+    {
+        "id": "LEY-004",
+        "title": "Ley de Fomento del Emprendimiento Juvenil",
+        "description": "Ofrece incentivos fiscales, reducción de trabas burocráticas y líneas de crédito avaladas por el Estado para jóvenes menores de 30 años que inicien su propia actividad económica."
+    },
+    {
+        "id": "LEY-005",
+        "title": "Ley de Transparencia Algorítmica",
+        "description": "Obliga a las administraciones públicas y grandes empresas a auditar y hacer explicables los algoritmos que tomen decisiones automatizadas que afecten a los derechos de los ciudadanos."
+    },
+    {
+        "id": "LEY-006",
+        "title": "Ley de Vivienda Asequible",
+        "description": "Promueve la construcción de un parque público de vivienda en alquiler y establece índices de referencia para evitar precios abusivos en zonas tensionadas."
+    },
+    {
+        "id": "LEY-007",
+        "title": "Ley de Salud Mental Pública",
+        "description": "Aumenta la ratio de psicólogos y psiquiatras en la sanidad pública, reduciendo los tiempos de espera y garantizando una atención integral y preventiva."
+    },
+    {
+        "id": "LEY-008",
+        "title": "Ley de Movilidad Sostenible",
+        "description": "Prioriza el transporte público y la movilidad activa (bicicleta, peatonal) en la planificación urbana, estableciendo zonas de bajas emisiones obligatorias en municipios de más de 20.000 habitantes."
+    },
+    {
+        "id": "LEY-009",
+        "title": "Ley de Ciberseguridad Nacional",
+        "description": "Crea una agencia nacional para la defensa ante ciberataques a infraestructuras críticas y establece protocolos de seguridad obligatorios para empresas que gestionen datos sensibles."
+    },
+    {
+        "id": "LEY-010",
+        "title": "Ley de Protección del Patrimonio Cultural Digital",
+        "description": "Establece medidas para la preservación a largo plazo de obras nativas digitales y digitalizaciones de patrimonio físico, asegurando su acceso para futuras generaciones."
+    }
+]

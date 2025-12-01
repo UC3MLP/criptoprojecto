@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import logging
 import tkinter as tk
 import customtkinter as ctk
@@ -207,7 +208,7 @@ class LawSelectionInterface(ctk.CTkToplevel):
     def __init__(self, master, dni, auth_server, ballot_box, bb_pub_pem):
         super().__init__(master)
         self.title("Selección de Ley")
-        self.geometry("400x400")
+        self.geometry("500x500")
         
         self.dni = dni
         self.auth_server = auth_server
@@ -216,24 +217,41 @@ class LawSelectionInterface(ctk.CTkToplevel):
         
         ctk.CTkLabel(self, text="Seleccione una ley para votar:", font=("Arial", 16, "bold")).pack(pady=20)
         
-        laws = {
-            "Ley 1": "Ley 1",
-            "Ley 2": "Propuesta de Ley 2",
-            "Ley 3": "Propuesta de Ley 3"
-        }
+        laws = []
+        try:
+            with open("laws.json", "r", encoding="utf-8") as f:
+                laws = json.load(f)
+        except Exception as e:
+            print(f"Error cargando leyes: {e}")
+            messagebox.showerror("Error", f"No se pudieron cargar las leyes: {e}")
+
+        # Scrollable frame para las leyes si son muchas
+        self.scrollable_frame = ctk.CTkScrollableFrame(self, width=380, height=300)
+        self.scrollable_frame.pack(pady=10, padx=10, fill="both", expand=True)
         
-        for law_id, law_name in laws.items():
-            # Frame para cada ley (Botón votar + Botón resultados)
-            law_frame = ctk.CTkFrame(self)
-            law_frame.pack(pady=5, padx=20, fill="x")
+        for law in laws:
+            law_id = law["id"]
+            law_title = law["title"]
+            law_desc = law["description"]
+
+            # Frame para cada ley
+            law_frame = ctk.CTkFrame(self.scrollable_frame)
+            law_frame.pack(pady=5, padx=5, fill="x")
             
-            ctk.CTkButton(law_frame, text=law_name, 
-                          command=lambda l_id=law_id: self.open_voting(l_id),
-                          width=200, height=40).pack(side="left", padx=10)
+            # Etiqueta con el título
+            ctk.CTkLabel(law_frame, text=f"{law_id}: {law_title}", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(5,0))
+
+            # Botones
+            btn_frame = ctk.CTkFrame(law_frame, fg_color="transparent")
+            btn_frame.pack(fill="x", pady=5)
+
+            ctk.CTkButton(btn_frame, text="Votar", 
+                          command=lambda l=law: self.open_voting(l),
+                          width=100, height=30).pack(side="left", padx=10)
             
-            ctk.CTkButton(law_frame, text="Ver Resultados",
+            ctk.CTkButton(btn_frame, text="Resultados",
                           command=lambda l_id=law_id: self.show_results(l_id),
-                          width=120, height=40, fg_color="orange", hover_color="darkorange").pack(side="right", padx=10)
+                          width=100, height=30, fg_color="orange", hover_color="darkorange").pack(side="right", padx=10)
 
         # Botón de Cerrar Sesión
         ctk.CTkButton(self, text="Cerrar Sesión", command=self.destroy,
@@ -251,11 +269,11 @@ class LawSelectionInterface(ctk.CTkToplevel):
         except Exception as e:
             messagebox.showerror("Error", f"No se pudieron obtener los resultados: {e}")
 
-    def open_voting(self, law_id):
+    def open_voting(self, law_data):
         """Abre la interfaz de votación para la ley seleccionada"""
         self.withdraw() # Ocultar selección
         try:
-            voting_window = VotingInterface(self, self.dni, self.auth_server, self.ballot_box, self.bb_pub_pem, law_id)
+            voting_window = VotingInterface(self, self.dni, self.auth_server, self.ballot_box, self.bb_pub_pem, law_data)
             self.wait_window(voting_window) # Esperar a que termine de votar
             
             if hasattr(voting_window, 'logout_requested') and voting_window.logout_requested:
@@ -269,16 +287,21 @@ class LawSelectionInterface(ctk.CTkToplevel):
 
 class VotingInterface(ctk.CTkToplevel):
     """interfaz para la votación"""
-    def __init__(self, master, dni, auth_server, ballot_box, bb_pub_pem, election_id):
+    def __init__(self, master, dni, auth_server, ballot_box, bb_pub_pem, law_data):
         #tk.Toplevel crea una ventana secundaria
         super().__init__(master)
-        self.title(f"Votación - {election_id}")
-        self.geometry("550x450")
+        
+        self.law_id = law_data["id"]
+        self.law_title = law_data["title"]
+        self.law_description = law_data["description"]
+        
+        self.title(f"Votación - {self.law_title}")
+        self.geometry("600x550") # Un poco más grande para la descripción
 
         #Datos y módulos clave
         self.dni = dni
         self.auth_server = auth_server
-        self.election_id = election_id
+        self.election_id = self.law_id # Usamos el ID como election_id
         self.ballot_box = ballot_box
         self.bb_pub_pem = bb_pub_pem
         self.logout_requested = False
@@ -287,9 +310,15 @@ class VotingInterface(ctk.CTkToplevel):
         self.eligibility_token = None
 
         #título de la ley
-        self.law_title_label= ctk.CTkLabel(self,text =f"Ley a votar: {self.election_id}",
-                  font=('Arial',16,'bold'))
-        self.law_title_label.pack(pady=10)
+        self.law_title_label= ctk.CTkLabel(self,text =f"{self.law_id}: {self.law_title}",
+                  font=('Arial',18,'bold'), wraplength=550)
+        self.law_title_label.pack(pady=(20, 10))
+        
+        # Descripción de la ley
+        self.desc_textbox = ctk.CTkTextbox(self, width=500, height=100, font=("Arial", 14))
+        self.desc_textbox.insert("0.0", self.law_description)
+        self.desc_textbox.configure(state="disabled") # Solo lectura
+        self.desc_textbox.pack(pady=10)
         
         #Etiqueta de estado
         self.status_label = ctk.CTkLabel(self,text="Seleccione su voto:",
