@@ -74,10 +74,10 @@ python3 -m pip install  cryptography
 
 ### CONTRASEÑAS:
 
-para root (4096 bits pq es el estandar recomendado): root
-para subroot (4096 bits): subroot
-para auth: auth
-para ballotbox: ballot
+Para Root CA (root) (4096 bits - estándar): root
+Para Sub CA (subroot) (4096 bits): subroot
+Para AuthServer (3072 bits): auth
+Para ballotBox (3072 bits): ballot
 
 ## Anexo 1: Claves estándar
 
