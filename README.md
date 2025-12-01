@@ -81,16 +81,20 @@ para ballotbox: ballot
 
 ## Anexo 1: Claves estándar
 
-Al realizar nuestro proyecto, hemos llegado a un consenso sobre las claves que se utilizarían tanto para la generación de Root CA, Sub CA, AuthServer y BallotBox como para la clave de cifrado del DNI. En este pequeño anexo se detallarán.
+Hemos llegado a un consenso sobre las claves que se utilizarían tanto 
+para Root CA, Sub CA, AuthServer y BallotBox como para la clave de cifrado
+del DNI. 
 
 ### Clave del DNI
-Nuestro programa requerirá una clave, preferiblemente aleatoria, en base64 y AES. Recomendamos el uso de OpenSSL en la terminal, aplicando este comando:
+Clave preferiblemente aleatoria, en base64 y AES. 
+Se usa OpenSSL en la terminal, aplicando este comando:
 
 ```bash
 openssl rand -base64 32
 ```
 
-Después de ejecutar esto, obtendremos una clave adecuada para el DNI. Se añadirá a la terminal antes de ejecutar el archivo.
+Entonces, obtendremos una clave adecuada para el DNI. 
+Se añadirá a la terminal antes de ejecutar el archivo de esta manera:
 
 **Windows (CMD):**
 ```cmd
@@ -103,10 +107,10 @@ python main.py
 DNI_KEY={key} python main.py
 ```
 
-Finalmente, el código se ejecutará sin problemas. Si, por alguna razón, se nos olvida poner el DNI, hay una prompt que te preguntará por la clave del DNI para ejecutar el programa. Si, aún así, no se da una clave, ya no se ejecutará.
+Si se nos olvida poner el DNI, hay una prompt que te preguntará por
+la clave del DNI para ejecutar el programa.
 
 **Clave de ejemplo:**
-Igualmente, proporcionamos una clave de ejemplo para ejecutar el código sin tener que crear ninguna clave:
 `KeEn6FVMn26JTAPDBvR/mFm5kufFmnL2r3mZUsR5BIg=`
 
 ## Anexo 2: Requisitos Previos (OpenSSL)
@@ -123,7 +127,8 @@ openssl version
 Si el comando funciona, el entorno está listo.
 
 ### Configuración en Windows
-En Windows, puede ser necesario definir la variable de entorno:
+Para evitar crear esto, se ha definido openssl.cnf. 
+Si esto no funciona, hay que definir la variable de entorno:
 
 ```cmd
 setx OPENSSL_CONF "C:\Program Files\OpenSSL-Win64\ssl\openssl.cnf"

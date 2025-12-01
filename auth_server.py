@@ -45,9 +45,10 @@ def derive_pwd_hash(password, salt, iterations=200_000):
     """transforma la contraseña en hash de 32 bytes con PBKDF2"""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
-        length=32,                         # tamaño normal
+        length=32,           # tamaño normal
         salt= salt,
-        iterations=200_000,
+        iterations=100_000,  # se ha dejado en 100000 porque el programa no va
+                             # lento, y estamos dentro del rango recomendado actual
     )
     derive = kdf.derive(password.encode()) # pasando a bytes + derivando
     return derive
