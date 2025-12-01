@@ -203,3 +203,54 @@ def generating_pki(root_password: str, sub_password: str, auth_password: str,
         f_out.write(f_root.read())
 
     print("[PKI] PKI generada correctamente.")
+
+def verify_full_pki():
+    """verifica la coherencia completa de la pki"""
+
+    print("[PKI] Verificando Root CA (autofirmada)...")
+    subprocess.run([
+        "openssl", "verify",
+        "-CAfile", CA_ROOT_CRT,
+        CA_ROOT_CRT
+    ], check=True)
+
+    print("[PKI] Verificando Sub CA contra Root CA...")
+    subprocess.run([
+        "openssl", "verify",
+        "-CAfile", CA_ROOT_CRT,
+        CA_SUB_CRT
+    ], check=True)
+
+    print("[PKI] Verificando certificado de AuthServer contra la cadena...")
+    subprocess.run([
+        "openssl", "verify",
+        "-CAfile", CA_CHAIN,
+        AUTH_CRT
+    ], check=True)
+
+    print("[PKI] Verificando certificado de BallotBox contra la cadena...")
+    subprocess.run([
+        "openssl", "verify",
+        "-CAfile", CA_CHAIN,
+        BALLOT_CRT
+    ], check=True)
+
+    print("[PKI] Todas las certificaciones de la PKI son válidas.")
+
+
+def check_ca_private_keys(root_password: str, sub_password: str):
+    # root
+    with open(CA_ROOT_KEY, "rb") as f:
+        serialization.load_pem_private_key(
+            f.read(),
+            password=root_password.encode()
+        )
+    # subroot
+    with open(CA_SUB_KEY, "rb") as f:
+        serialization.load_pem_private_key(
+            f.read(),
+            password=sub_password.encode()
+        )
+
+
+

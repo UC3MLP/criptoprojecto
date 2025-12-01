@@ -11,7 +11,7 @@ from db_utils import db_init
 from auth_server import AuthServer, register_user, login_user
 from votar_box import BallotBox
 from crypto_client import ClientCrypto
-from pki import generating_pki
+from pki import generating_pki, verify_full_pki, check_ca_private_keys
 from datetime import date, timedelta
 
 #Inicializacion y configuracion de logging para el archivo de logs
@@ -625,6 +625,8 @@ if __name__ == "__main__":
     try:
         generating_pki(root_password, sub_password, auth_password,
                        ballot_password)
+        check_ca_private_keys(root_password, sub_password)
+        verify_full_pki()
     except subprocess.CalledProcessError as e:
         print("\nERROR generando la PKI con OpenSSL.")
         print("Comando falló con código:", e.returncode)
