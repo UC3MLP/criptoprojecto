@@ -12,6 +12,7 @@ from auth_server import AuthServer, register_user, login_user
 from votar_box import BallotBox
 from crypto_client import ClientCrypto
 from pki import generating_pki
+from datetime import date, timedelta
 
 #Inicializacion y configuracion de logging para el archivo de logs
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -217,72 +218,246 @@ class LawSelectionInterface(ctk.CTkToplevel):
         self.auth_server = auth_server
         self.ballot_box = ballot_box
         self.bb_pub_pem = bb_pub_pem
+
+        # primer domingo de 2025: 5 enero 2025
+        self.current_date = date(2025, 1, 5)
+        self.current_week = 0
         
         ctk.CTkLabel(self, text="Seleccione una ley para votar:", font=("Arial", 16, "bold")).pack(pady=20)
-        
-        laws = []
+
         try:
             with open("laws.json", "r", encoding="utf-8") as f:
-                laws = json.load(f)
+                self.all_laws = json.load(f)
         except Exception as e:
             print(f"Error cargando leyes: {e}")
-            messagebox.showerror("Error", f"No se pudieron cargar las leyes: {e}")
+            messagebox.showerror("Error",
+                                 f"No se pudieron cargar las leyes: {e}")
+            self.all_laws = []
 
-        # Scrollable frame para las leyes si son muchas
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, width=380, height=300)
+            # leyes: revelar, activas y caducadas
+            # hacemos copia para poder añadir metadata (reveal_week)
+        self.pending_laws = [dict(law) for law in self.all_laws]
+        self.active_laws = []  # leyes ya reveladas y aún dentro de plazo
+        self.expired_laws = set()  # ids de leyes caducadas
+
+        # ley actual
+        self.current_law = None
+
+        # título
+        ctk.CTkLabel(
+            self,
+            text="Seleccione una ley activa:",
+            font=("Arial", 14, "bold")
+        ).pack(pady=10)
+
+        # debug, ir siguiente domingo
+        debug_frame = ctk.CTkFrame(self)
+        debug_frame.pack(pady=5, padx=10, fill="x")
+
+        self.date_label = ctk.CTkLabel(
+            debug_frame,
+            text="",
+            font=("Arial", 12)
+        )
+        self.date_label.pack(side="left", padx=10)
+
+        self.next_sunday_button = ctk.CTkButton(
+            debug_frame,
+            text="Ir al siguiente domingo",
+            command=self.go_to_next_sunday,
+            width=180,
+            height=28,
+            font=("Arial", 11)
+        )
+        self.next_sunday_button.pack(side="right", padx=10)
+
+        # scrollable frame para las leyes activas
+        self.scrollable_frame = ctk.CTkScrollableFrame(self, width=550,
+                                                       height=400)
         self.scrollable_frame.pack(pady=10, padx=10, fill="both", expand=True)
-        
-        for law in laws:
+
+        # cerrar sesión
+        ctk.CTkButton(
+            self,
+            text="Cerrar Sesión",
+            command=self.destroy,
+            fg_color="red",
+            hover_color="darkred",
+            width=200,
+            height=40
+        ).pack(pady=15)
+
+        # estado inicial inicializado
+        self._activate_next_law_if_available()
+        self._update_date_label()
+        self.render_laws()
+
+        # métodos para tiempo y leyes !
+
+    def _update_date_label(self):
+        """actualiza la etiqueta de la fecha simulada"""
+        self.date_label.configure(
+            text=f"Hoy: {self.current_date.strftime('%d/%m/%Y')}"
+        )
+
+    def _activate_next_law_if_available(self):
+        """saca la siguiente ley de pending_laws y la hace activa
+        en la semana actual"""
+        if self.pending_laws:
+            next_law = self.pending_laws.pop(0)
+            # guardamos en qué semana se reveló
+            next_law["reveal_week"] = self.current_week
+            self.active_laws.append(next_law)
+        else:
+            # no hay más leyes nuevas por revelar
+            # desactivamos el botón
+            if not self.active_laws:
+                self.next_sunday_button.configure(state="disabled")
+
+    def _expire_old_laws(self):
+        """marca como caducadas las leyes con 4 o más domingos de antigüedad"""
+        still_active = []
+        for law in self.active_laws:
+            reveal_week = law.get("reveal_week", 0)
+            age_weeks = self.current_week - reveal_week
+            if age_weeks >= 4:
+                # caducada
+                self.expired_laws.add(law["id"])
+            else:
+                still_active.append(law)
+        self.active_laws = still_active
+
+    def go_to_next_sunday(self):
+        """avanza una semana en el tiempo simulado y actualiza las leyes"""
+        self.current_week += 1
+        self.current_date = self.current_date + timedelta(days=7)
+        self._update_date_label()
+
+        # caducar leyes antiguas y revelar nueva si queda
+        self._expire_old_laws()
+        self._activate_next_law_if_available()
+        self.render_laws()
+
+        # leyes
+
+    def render_laws(self):
+        """redibuja la lista de leyes activas y no caducadas"""
+        # Borrar todo lo que haya en el scrollable_frame
+        for child in self.scrollable_frame.winfo_children():
+            child.destroy()
+
+        if not self.active_laws:
+            ctk.CTkLabel(
+                self.scrollable_frame,
+                text="No hay leyes activas en este momento.\n"
+                     "Avanza al siguiente domingo para revelar nuevas leyes\n"
+                     "o todas las leyes han caducado.",
+                font=("Arial", 13)
+            ).pack(pady=20)
+            return
+
+        # leyes ya votadas por este DNI
+        already_voted = self.auth_server.get_voted_elections(self.dni)
+
+        for law in self.active_laws:
             law_id = law["id"]
             law_title = law["title"]
             law_desc = law["description"]
 
-            # Frame para cada ley
+            if law_id in self.expired_laws:
+                # seguridad
+                continue
+
+            # frame para cada ley activa
             law_frame = ctk.CTkFrame(self.scrollable_frame)
             law_frame.pack(pady=5, padx=5, fill="x")
-            
-            # Etiqueta con el título
-            ctk.CTkLabel(law_frame, text=f"{law_id}: {law_title}", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(5,0))
+
+            # Título
+            ctk.CTkLabel(
+                law_frame,
+                text=f"{law_id}: {law_title}",
+                font=("Arial", 12, "bold")
+            ).pack(anchor="w", padx=10, pady=(5, 0))
+
+            # Descripción
+            ctk.CTkLabel(
+                law_frame,
+                text=law_desc,
+                font=("Arial", 13),
+                wraplength=480,
+                justify="left",
+                anchor="w"
+            ).pack(fill="x", padx=10, pady=(0, 5))
 
             # Botones
             btn_frame = ctk.CTkFrame(law_frame, fg_color="transparent")
             btn_frame.pack(fill="x", pady=5)
 
-            ctk.CTkButton(btn_frame, text="Votar", 
-                          command=lambda l=law: self.open_voting(l),
-                          width=100, height=30).pack(side="left", padx=10)
-            
-            ctk.CTkButton(btn_frame, text="Resultados",
-                          command=lambda l_id=law_id: self.show_results(l_id),
-                          width=100, height=30, fg_color="orange", hover_color="darkorange").pack(side="right", padx=10)
+            # Botón de Votar
+            if law_id not in already_voted:
+                ctk.CTkButton(
+                    btn_frame,
+                    text="Votar",
+                    command=lambda l=law: self.open_voting(l),
+                    width=100, height=30
+                ).pack(side="left", padx=10)
+            else:
+                ctk.CTkLabel(
+                    btn_frame,
+                    text="Ya has votado esta ley.",
+                    font=("Arial", 10),
+                    text_color="gray"
+                ).pack(side="left", padx=10)
 
-        # Botón de Cerrar Sesión
-        ctk.CTkButton(self, text="Cerrar Sesión", command=self.destroy,
-                      fg_color="red", hover_color="darkred", width=200, height=40).pack(pady=30)
+            # Botón de Resultados
+            ctk.CTkButton(
+                btn_frame,
+                text="Resultados",
+                command=lambda l_id=law_id: self.show_results(l_id),
+                width=120, height=30,
+                fg_color="orange",
+                hover_color="darkorange"
+            ).pack(side="right", padx=10)
+
+        # resultados
 
     def show_results(self, law_id):
-        """Muestra los resultados de la votación para una ley"""
+        """muestra los resultados de la votación para una ley"""
         try:
             counts = self.ballot_box.get_vote_counts(law_id)
-            msg = f"Resultados para {law_id}:\n\n" \
-                  f"SI: {counts.get('SI', 0)}\n" \
-                  f"NO: {counts.get('NO', 0)}\n" \
-                  f"ABSTENCIÓN: {counts.get('ABSTENCIÓN', 0)}"
+            msg = (
+                f"Resultados para {law_id}:\n\n"
+                f"SI: {counts.get('SI', 0)}\n"
+                f"NO: {counts.get('NO', 0)}\n"
+                f"ABSTENCIÓN: {counts.get('ABSTENCIÓN', 0)}"
+            )
             messagebox.showinfo("Resultados", msg)
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudieron obtener los resultados: {e}")
+            messagebox.showerror("Error",
+                                 f"No se pudieron obtener los resultados: {e}")
 
     def open_voting(self, law_data):
-        """Abre la interfaz de votación para la ley seleccionada"""
-        self.withdraw() # Ocultar selección
+        """abre la interfaz de votación para la ley seleccionada"""
+        self.withdraw()  # Ocultar selección
         try:
-            voting_window = VotingInterface(self, self.dni, self.auth_server, self.ballot_box, self.bb_pub_pem, law_data)
-            self.wait_window(voting_window) # Esperar a que termine de votar
-            
-            if hasattr(voting_window, 'logout_requested') and voting_window.logout_requested:
-                self.destroy() # Si pidió logout, cerramos también esta ventana
+            voting_window = VotingInterface(
+                self,
+                self.dni,
+                self.auth_server,
+                self.ballot_box,
+                self.bb_pub_pem,
+                law_data
+            )
+            self.wait_window(voting_window)  # esperar a que termine de votar
+
+            # tras cerrar la ventana de voto, volvemos a mostrar selección
+            if hasattr(voting_window,
+                       'logout_requested') and voting_window.logout_requested:
+                self.destroy()  # logout → cerrar también esta ventana
             else:
-                self.deiconify() # Si solo votó, volvemos a mostrar la selección
+                self.deiconify()
+                # puede que esta ley ya haya sido votada → refrescar listado
+                self.render_laws()
         except Exception as e:
             print(f"Error abriendo votación: {e}")
             self.deiconify()
@@ -471,35 +646,7 @@ if __name__ == "__main__":
         print(f"\nERROR inicializando BallotBox: {e}")
         sys.exit(1)
 
+# siempre pon: set DNI_KEY={llave en base 64 de 32}
+
     app = App(AS, BB, BB.pub_pem)
     app.mainloop()
-
-    # try:
-        # AUTH_KEY_PASSWORD = os.environ["AUTH_KEY_PASSWORD"]
-        # BALLOT_KEY_PASSWORD = os.environ["BALLOT_KEY_PASSWORD"]
-        # hay que poner cuando se quiere ejecutar:
-        # en macOS/Linux (Terminal):
-        # export AUTH_KEY_PASSWORD="auth"
-        # export BALLOT_KEY_PASSWORD="ballot"
-        # python main.py
-        #
-        # en Windows (PowerShell):
-        # $env:AUTH_KEY_PASSWORD="auth"
-        # $env:BALLOT_KEY_PASSWORD="ballot"
-        # python main.py
-        #
-        # en Windows (CMD):
-        # set AUTH_KEY_PASSWORD=auth
-        # set BALLOT_KEY_PASSWORD=ballot
-        # python main.py
-    # except KeyError as e:
-        # missing = e.args[0]
-        # print(f"ERROR: falta la variable de entorno {missing}."
-              # f"Debes hacer 'export/set ...' antes de ejecutar")
-        # sys.exit(1)
-
-    # AS= AuthServer(key_password=AUTH_KEY_PASSWORD)
-    # BB = BallotBox(auth_public_key=AS.public_key,
-                   # key_password=BALLOT_KEY_PASSWORD)
-    # app = App(AS, BB, BB.pub_pem)
-    # app.mainloop()

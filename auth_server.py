@@ -5,6 +5,7 @@ import hashlib
 import base64
 import secrets
 import sqlite3
+import getpass
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes, serialization
@@ -15,9 +16,27 @@ from db_utils import DB_PATH
 from pki import (AUTH_KEY_PATH, AUTH_CERT_PATH, verify_with_openssl,
                  load_private_key, load_public_key)
 
-# clave maestra para cifrar DNIS: ESTO NO TIENE QUE ESTAR EN EL CÓDIGO
-# EN UN PROGRAMA REAL
-DNI_ENCRYPTION_KEY = b"12345678901234567890123456789012"
+# clave maestra para cifrar DNIS: clave random generada con openssl en base64
+DNI_KEY_B64 = os.environ.get("DNI_KEY")
+if not DNI_KEY_B64:
+    print("Falta la variable de entorno DNI_KEY")
+    DNI_KEY_B64 = getpass.getpass("Introduce la clave AES en base 64 para "
+                                  "el DNI:")
+    if not DNI_KEY_B64:
+        raise RuntimeError("No se escribió ninguna clave para el DNI.")
+
+
+try:
+    DNI_ENCRYPTION_KEY = base64.b64decode(DNI_KEY_B64)
+except Exception as e:
+    raise RuntimeError(f"No se ha podido decodificar DNI_KEY (Base64): {e}")
+
+
+if len(DNI_ENCRYPTION_KEY) != 32:
+    raise RuntimeError(
+        f"DNI_ENCRYPTION_KEY debe tener 32 bytes (256 bits), pero tiene {len(DNI_ENCRYPTION_KEY)}."
+    )
+
 
 # pbkdf2 = función criptográfica utilizada para derivar claves de contraseñas
 # de forma segura
@@ -236,4 +255,16 @@ class AuthServer:
         con.close()
         print(f"[AuthServer] Token firmado emitido para ...{dni_claro[-4:]}")
         return token_b64
-        # devuelve token entero 
+        # devuelve token entero
+
+    def get_voted_elections(self, dni_en_claro: str) -> set[str]:
+        """devuelve el conjunto de election_id que este DNI ha votado"""
+        dni_hash = hashlib.sha256(dni_en_claro.encode()).hexdigest()
+        con = sqlite3.connect(DB_PATH)
+        cur = con.cursor()
+        rows = cur.execute(
+            "SELECT election_id FROM tokens WHERE dni=? AND used=1",
+            (dni_hash,),
+        ).fetchall()
+        con.close()
+        return {row[0] for row in rows}

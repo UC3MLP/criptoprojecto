@@ -58,10 +58,8 @@ def load_public_key(cert_path: str):
 
 def generating_pki(root_password: str, sub_password: str, auth_password: str,
                    ballot_password: str) -> None:
-    """
-    genera todo el pki, si no existe, con ssl.
-    root CA, sub CA, AuthServer, BallotBox, cadena (ca_chain.pem)
-    """
+    """ genera todo el pki, si no existe, con ssl.
+    root CA, sub CA, AuthServer, BallotBox, cadena (ca_chain.pem)"""
     # si existe, asumimos que todo está creado
     if os.path.exists(AUTH_KEY) and os.path.exists(BALLOT_KEY):
         print("[PKI] Claves ya existentes, no se regenera la PKI.")
